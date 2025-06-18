@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import { Lead, BusinessType, EmailType, TimeSeriesDataItem, ChartDataItem, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole, NewLeadData } from '../types';
 import { updateLeadDetails as updateLeadDetailsService, addLead as addLeadService, deleteLeadById as deleteLeadService, updateCoreLeadDetails as updateCoreLeadDetailsService, assignLeadToUser as assignLeadToUserService } from '../../services/dataService'; 
 import MetricCard from './MetricCard';
@@ -13,7 +13,7 @@ import ErrorDisplay from './shared/ErrorDisplay';
 import GlobalMessageDisplay from './shared/GlobalMessageDisplay'; 
 import GlassContainer from './shared/GlassContainer'; 
 import { CoreLeadDataUpdate } from '../App'; 
-import DateFilterBar from './DateFilterBar';
+// import DateFilterBar from './DateFilterBar'; // Removed
 
 
 interface DashboardPageProps {
@@ -60,18 +60,18 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
 
-  const handleOpenLeadDetailModal = (lead: Lead) => {
+  const handleOpenLeadDetailModal = useCallback((lead: Lead) => {
     setSelectedLead(lead);
     setIsLeadDetailModalOpen(true);
     setGlobalUpdateMessage(null); 
-  };
+  }, []);
 
-  const handleCloseLeadDetailModal = () => {
+  const handleCloseLeadDetailModal = useCallback(() => {
     setSelectedLead(null);
     setIsLeadDetailModalOpen(false);
-  };
+  }, []);
 
-  const handleUpdateLeadDetailsForModal = async (leadId: string, updates: LeadUpdatePayload) => {
+  const handleUpdateLeadDetailsForModal = useCallback(async (leadId: string, updates: LeadUpdatePayload) => {
     setGlobalUpdateMessage(null);
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
@@ -99,9 +99,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       setGlobalUpdateMessage({type: 'error', message: `Failed to update details for "${originalLeadName}": ${errorMessage}`});
       throw err; 
     }
-  };
+  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp]);
 
-  const handleUpdateCoreLeadDetailsForModal = async (leadId: string, updates: CoreLeadDataUpdate) => {
+  const handleUpdateCoreLeadDetailsForModal = useCallback(async (leadId: string, updates: CoreLeadDataUpdate) => {
     setGlobalUpdateMessage(null);
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
@@ -121,9 +121,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to update core details for "${originalLeadName}": ${errorMessage}` });
         throw err;
     }
-  };
+  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead]);
 
-  const handleDeleteLeadForModal = async (leadId: string) => {
+  const handleDeleteLeadForModal = useCallback(async (leadId: string) => {
     setGlobalUpdateMessage(null);
     const leadToDelete = leads.find(l => l.id === leadId);
     const leadName = leadToDelete?.name || 'Lead';
@@ -141,9 +141,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to delete lead "${leadName}": ${errorMessage}` });
         throw err;
     }
-  };
+  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal]);
 
-  const handleAssignLeadForModal = async (leadId: string, targetUserId: string | null) => {
+  const handleAssignLeadForModal = useCallback(async (leadId: string, targetUserId: string | null) => {
     setGlobalUpdateMessage(null);
     const leadToAssign = leads.find(l => l.id === leadId);
     const leadName = leadToAssign?.name || 'Lead';
@@ -165,18 +165,18 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       setGlobalUpdateMessage({ type: 'error', message: `Failed to assign lead "${leadName}": ${errorMessage}` });
       throw err;
     }
-  };
+  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead]);
   
-  const handleOpenAddLeadModal = () => {
+  const handleOpenAddLeadModal = useCallback(() => {
     setIsAddLeadModalOpen(true);
     setGlobalUpdateMessage(null);
-  };
+  }, []);
 
-  const handleCloseAddLeadModal = () => {
+  const handleCloseAddLeadModal = useCallback(() => {
     setIsAddLeadModalOpen(false);
-  };
+  }, []);
 
-  const handleSaveNewLead = async (newLeadData: NewLeadData) => {
+  const handleSaveNewLead = useCallback(async (newLeadData: NewLeadData) => {
     if (!userProfile) { // userProfile is the one adding, actorUserProfile is also userProfile here
         setGlobalUpdateMessage({ type: 'error', message: `User profile not available. Cannot add lead.` });
         return;
@@ -192,41 +192,24 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       setGlobalUpdateMessage({ type: 'error', message: `Failed to submit lead: ${errorMessage}` });
       throw err; 
     }
-  };
+  }, [userProfile, handleCloseAddLeadModal]);
 
-  const handleClearFilter = () => {
-    setCurrentStageFilter(null);
-    clearInitialStageFilter(); 
-  };
+  // const handleClearFilter = () => { // Removed as button is removed
+  //   setCurrentStageFilter(null);
+  //   clearInitialStageFilter();
+  // };
 
-  // Date filter state and logic
-  const [dateFilter, setDateFilter] = useState<{ startDate?: string, endDate?: string }>({});
-  const [filteredLeads, setFilteredLeads] = useState<Lead[]>(leads);
-  const [isLoadingLeads, setIsLoadingLeads] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  // Date filter state and logic REMOVED
+  // const [dateFilter, setDateFilter] = useState<{ startDate?: string, endDate?: string }>({});
+  // const [filteredLeads, setFilteredLeads] = useState<Lead[]>(leads); // DELETE THIS LINE
+  // const [isLoadingLeads, setIsLoadingLeads] = useState(false); // Removed, main isLoading prop is used
+  // const [fetchError, setFetchError] = useState<string | null>(null); // Removed
 
-  useEffect(() => {
-    setFilteredLeads(leads);
-  }, [leads]);
+  // useEffect(() => { // DELETE THIS ENTIRE BLOCK
+  //   setFilteredLeads(leads);
+  // }, [leads]);
 
-  const handleDateFilterChange = async (startDate?: string, endDate?: string) => {
-    setDateFilter({ startDate, endDate });
-    setIsLoadingLeads(true);
-    setFetchError(null);
-    try {
-      const fetched = await updateLeadDetailsService.fetchLeads(
-        userProfile?.id,
-        userProfile?.role as UserRole,
-        startDate,
-        endDate
-      );
-      setFilteredLeads(fetched);
-    } catch (err) {
-      setFetchError(err instanceof Error ? err.message : 'Failed to fetch leads');
-    } finally {
-      setIsLoadingLeads(false);
-    }
-  };
+  // handleDateFilterChange REMOVED
 
   const metrics = useMemo(() => {
     const totalLeads = leads.length;
@@ -287,7 +270,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   }, [leads, currentStageFilter]);
 
   const tableTitle = useMemo(() => {
-    if (currentStageFilter) {
+    // Assuming LeadStage is imported in DashboardPage.tsx from '../types'
+    if (typeof currentStageFilter === 'string' && Object.values(LeadStage).includes(currentStageFilter as LeadStage)) {
       return `Lead Manifest: ${currentStageFilter} Stage`;
     }
     const userSpecificTitle = isSuperUser ? "(Last 10 System-wide)" : "(Your Last 10 Assigned)";
@@ -369,21 +353,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       <GlassContainer>
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-700 dark:text-zinc-200">{tableTitle}</h2>
-            {currentStageFilter && (
-                <button
-                    onClick={handleClearFilter}
-                    className="px-4 py-2 text-xs font-medium text-blue-600 bg-blue-100/70 hover:bg-blue-200/70 rounded-lg transition-colors duration-150 shadow-sm border border-blue-200/80 dark:text-blue-300 dark:bg-zinc-700/40 dark:hover:bg-zinc-600/50 dark:border-zinc-600/60"
-                    aria-label="Clear stage filter and show all recent leads"
-                >
-                   Clear Filter / Show Recent
-                </button>
-            )}
+            {/* Clear Filter button removed */}
         </div>
         <LeadsTable 
-            leads={filteredLeads} 
+            leads={leadsForTable} // Ensure this is the case
             onRowClick={handleOpenLeadDetailModal} 
             currentUserProfile={userProfile}
-            dateFilterBar={<DateFilterBar onFilterChange={handleDateFilterChange} />}
+            // dateFilterBar prop removed
         />
       </GlassContainer>
 

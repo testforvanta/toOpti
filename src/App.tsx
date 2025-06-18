@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import DashboardPage from './components/DashboardPage';
 import LeadFlowPage from './components/LeadFlowPage';
 import SidePanel from './components/SidePanel'; 
@@ -12,7 +12,10 @@ import {
   fetchUserProfiles as fetchUserProfilesService,
   fetchBasicUserProfiles as fetchBasicUserProfilesService, 
   fetchActivityLogsForUser,
-  deleteLeadById
+  deleteLeadById,
+  updateLeadDetails as updateLeadDetailsService,
+  updateCoreLeadDetails as updateCoreLeadDetailsService,
+  assignLeadToUser as assignLeadToUserService // Added import
 } from '../services/dataService'; 
 import { useAuth } from './auth/AuthContext';
 import { fetchUserProfile } from '../services/fetchUserProfile';
@@ -61,7 +64,9 @@ const App: React.FC = () => {
   const [pendingRejectNotification, setPendingRejectNotification] = useState(null);
 
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const selectedLead = leads.find(l => l.id === selectedLeadId) || null;
+  const selectedLead = useMemo(() => {
+    return leads.find(l => l.id === selectedLeadId) || null;
+  }, [leads, selectedLeadId]);
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
@@ -291,19 +296,37 @@ const App: React.FC = () => {
         refreshNotifications();
         // Optionally refresh leads if needed
       } catch (err) {
-        alert("Failed to confirm and delete lead: " + (err instanceof Error ? err.message : String(err)));
+        setGlobalUpdateMessage({ type: 'error', message: "Failed to confirm and delete lead: " + (err instanceof Error ? err.message : String(err)) });
       }
     } else if (action === NotificationAction.REJECT) {
-      setPendingRejectNotification(notification);
-      setShowRejectionModal(true);
+      // console.log removed
+      // console.log removed
+      try {
+        if (!notification) {
+          // console.error removed, setGlobalUpdateMessage is kept
+          setGlobalUpdateMessage({ type: 'error', message: "Cannot process rejection: Notification data is missing." });
+          return;
+        }
+        setPendingRejectNotification(notification);
+        setShowRejectionModal(true);
+        // console.log removed
+      } catch (e) {
+        // console.error removed, setGlobalUpdateMessage is kept
+        const errorMessage = e instanceof Error ? e.message : "Unknown error occurred.";
+        setGlobalUpdateMessage({ type: 'error', message: "Error preparing rejection dialog: " + errorMessage });
+      }
     }
   };
 
   // Handle rejection reason submit
   const handleRejectSubmit = async () => {
-    if (!pendingRejectNotification) return;
-    const { leadId, leadName } = pendingRejectNotification.data || {};
-    const recipientId = pendingRejectNotification.sender_id;
+    // console.log removed
+    if (!pendingRejectNotification) {
+      // console.log removed
+      return;
+    }
+    const { leadId, leadName } = (pendingRejectNotification as any).data || {};
+    const recipientId = (pendingRejectNotification as any).sender_id; // Added type assertion for sender_id
     try {
       await updateNotification(pendingRejectNotification.id, { read: true });
       await sendNotification({
@@ -318,7 +341,7 @@ const App: React.FC = () => {
       setPendingRejectNotification(null);
       refreshNotifications();
     } catch (err) {
-      alert("Failed to reject lead deletion: " + (err instanceof Error ? err.message : String(err)));
+      setGlobalUpdateMessage({ type: 'error', message: "Failed to reject lead deletion: " + (err instanceof Error ? err.message : String(err)) });
     }
   };
 
@@ -331,34 +354,133 @@ const App: React.FC = () => {
   const handleUpdateLeadDetailsForModal = async (
     leadId: string,
     updates: LeadUpdatePayload,
-    actorUserId: string,
+    // actorUserId is passed from LeadDetailModal, which should get it from App's profile
+    // currentLeadData is also passed from LeadDetailModal
+    actorUserId: string, // This should be `profile.id` from App.tsx's scope when called
     currentLeadData: Lead
   ) => {
-    // You may want to call your update service here
-    // For now, just update state
-    setLeads(prevLeads => prevLeads.map(l => (l.id === leadId ? { ...l, ...updates } : l)));
+    setGlobalUpdateMessage(null); // Clear previous messages
+    const leadName = currentLeadData?.name || 'Lead';
+
+    if (!profile?.id) { // Use App's profile state as the actor
+        setGlobalUpdateMessage({type: 'error', message: "Cannot update: Actor user profile not found."});
+        return;
+    }
+
+    try {
+      // Call the service to update data in the backend
+      await updateLeadDetailsService(leadId, updates, profile.id, currentLeadData); // Use profile.id
+
+      // Update local state (optimistic or after success)
+      setLeads(prevLeads =>
+        prevLeads.map(l => {
+          if (l.id === leadId) {
+            const updatedLead = { ...l, ...updates };
+            if (updates.paymentDetails === null) {
+               updatedLead.paymentDetails = undefined;
+            }
+            return updatedLead;
+          }
+          return l;
+        })
+      );
+      // Also update selectedLead if it's the one being edited
+      if (selectedLead && selectedLead.id === leadId) {
+          setSelectedLeadId(null); // Force modal to close or re-evaluate selectedLead
+          setSelectedLeadId(leadId); // This will re-find the lead with new data if list updated
+      }
+
+      let successMessage = `Details for "${leadName}" updated.`;
+      // Customize success message based on updates (optional, but good UX)
+      if (updates.stage && updates.meetLink) {
+        successMessage = `Stage for "${leadName}" updated to ${updates.stage} and meeting link added.`;
+      } else if (updates.stage) {
+        successMessage = `Stage for "${leadName}" updated to ${updates.stage}.`;
+      } else if (updates.meetLink) {
+        successMessage = `Meeting link for "${leadName}" updated.`;
+      } else if (updates.paymentDetails) {
+        successMessage = `Payment details for "${leadName}" updated.`;
+      }
+      setGlobalUpdateMessage({type: 'success', message: successMessage});
+
+    } catch (err) {
+      console.error("App.tsx: Failed to update lead details via modal", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setGlobalUpdateMessage({type: 'error', message: `Failed to update details for "${leadName}": ${errorMessage}`});
+    }
   };
 
   // Async handler for deleting a lead
   const handleDeleteLeadForModal = async (
     leadId: string,
+    // actorUserId is passed from LeadDetailModal, should be profile.id
+    // leadName is passed from LeadDetailModal
+    // currentAssignedUserId is passed from LeadDetailModal
     actorUserId: string,
     leadName: string,
     currentAssignedUserId?: string | null
   ) => {
-    // You may want to call your delete service here
-    setLeads(prevLeads => prevLeads.filter(l => l.id !== leadId));
-    setSelectedLeadId(null);
+    setGlobalUpdateMessage(null); // Clear previous messages
+
+    if (!profile?.id) { // Use App's profile state as the actor
+        setGlobalUpdateMessage({type: 'error', message: "Cannot delete lead: Actor user profile not found."});
+        return;
+    }
+
+    try {
+      // Call the service to delete data in the backend
+      await deleteLeadById(leadId, profile.id, leadName, currentAssignedUserId);
+
+      // Update local state
+      setLeads(prevLeads => prevLeads.filter(l => l.id !== leadId));
+      setSelectedLeadId(null); // Close modal after delete
+
+      setGlobalUpdateMessage({ type: 'success', message: `Lead "${leadName}" deleted successfully.` });
+
+    } catch (err) {
+      console.error("App.tsx: Failed to delete lead via modal", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setGlobalUpdateMessage({ type: 'error', message: `Failed to delete lead "${leadName}": ${errorMessage}` });
+    }
   };
 
   // Async handler for updating core lead details
   const handleUpdateCoreLeadDetailsForModal = async (
     leadId: string,
     updates: CoreLeadDataUpdate,
-    actorUserId: string,
+    actorUserId: string, // This should be `profile.id` from App.tsx's scope
     currentLeadData: Lead
   ) => {
-    setLeads(prevLeads => prevLeads.map(l => (l.id === leadId ? { ...l, ...updates } : l)));
+    setGlobalUpdateMessage(null); // Clear previous messages
+    const originalLeadName = currentLeadData?.name || 'Lead'; // For messages
+
+    if (!profile?.id) { // Use App's profile state as the actor
+        setGlobalUpdateMessage({type: 'error', message: "Cannot update core details: Actor user profile not found."});
+        return;
+    }
+
+    try {
+      // Call the service to update data in the backend
+      await updateCoreLeadDetailsService(leadId, updates, profile.id, currentLeadData);
+
+      // Update local state
+      setLeads(prevLeads =>
+        prevLeads.map(l => (l.id === leadId ? { ...l, ...updates } : l))
+      );
+
+      // Also update selectedLead if it's the one being edited
+      if (selectedLead && selectedLead.id === leadId) {
+          setSelectedLeadId(null);
+          setSelectedLeadId(leadId);
+      }
+
+      setGlobalUpdateMessage({ type: 'success', message: `Core details for "${updates.name || originalLeadName}" updated.` });
+
+    } catch (err) {
+      console.error("App.tsx: Failed to update core lead details via modal", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setGlobalUpdateMessage({ type: 'error', message: `Failed to update core details for "${originalLeadName}": ${errorMessage}` });
+    }
   };
 
   // Async handler for assigning a lead
@@ -369,13 +491,42 @@ const App: React.FC = () => {
     currentAssignedUserId?: string | null,
     assignedToFullName?: string | null
   ) => {
-    setLeads(prevLeads =>
-      prevLeads.map(l =>
-        l.id === leadId
-          ? { ...l, assignedToUserId: targetUserId, assignedToUserFullName: assignedToFullName }
-          : l
-      )
-    );
+    setGlobalUpdateMessage(null); // Clear previous messages
+    const leadToAssign = leads.find(l => l.id === leadId);
+    const leadName = leadToAssign?.name || 'Lead';
+    const targetUserNameDisplay = assignedToFullName || (targetUserId ? 'Selected User' : 'Unassigned');
+
+    if (!profile?.id) { // Use App's profile state as the actor
+        setGlobalUpdateMessage({type: 'error', message: "Cannot assign lead: Actor user profile not found."});
+        return;
+    }
+
+    try {
+      // Call the service to assign lead in the backend
+      await assignLeadToUserService(leadId, targetUserId, profile.id, currentAssignedUserId, assignedToFullName);
+
+      // Update local state
+      setLeads(prevLeads =>
+        prevLeads.map(l =>
+          l.id === leadId
+            ? { ...l, assignedToUserId: targetUserId, assignedToUserFullName: assignedToFullName }
+            : l
+        )
+      );
+
+      // Also update selectedLead if it's the one being edited
+      if (selectedLead && selectedLead.id === leadId) {
+          setSelectedLeadId(null);
+          setSelectedLeadId(leadId);
+      }
+
+      setGlobalUpdateMessage({ type: 'success', message: `Lead "${leadName}" ${targetUserId ? `assigned to ${targetUserNameDisplay}` : 'unassigned'}.` });
+
+    } catch (err) {
+      console.error("App.tsx: Failed to assign lead via modal", err);
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
+      setGlobalUpdateMessage({ type: 'error', message: `Failed to assign lead "${leadName}": ${errorMessage}` });
+    }
   };
   
   useEffect(() => {
@@ -398,6 +549,8 @@ const App: React.FC = () => {
       window.removeEventListener('navigateToDashboard', handleNavigateToDashboard);
     };
   }, [profile]);
+
+  // Removed diagnostic useEffect for showRejectionModal and pendingRejectNotification
 
   try {
     if (loading) {
@@ -425,8 +578,9 @@ const App: React.FC = () => {
         <NotificationPanel
           isOpen={isNotificationPanelOpen}
           onClose={() => setNotificationPanelOpen(false)}
-          onAction={updateNotification}
+          onAction={handleNotificationAction} // Changed
           currentUserId={user?.id || ''}
+          onViewLead={handleViewLeadFromNotification} // Added
         />
       </div>
       {/* Only show SidePanel if not on settings page */}
@@ -530,10 +684,47 @@ const App: React.FC = () => {
             userProfiles={userProfiles}
           />
         )}
+
+        {/* Restored Original Rejection Modal Content */}
+        {showRejectionModal && pendingRejectNotification && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
+            <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-md m-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-100 mb-4">
+                Reject Lead Deletion: <span className="text-blue-600 dark:text-blue-400">{(pendingRejectNotification as any)?.data?.leadName || 'Unknown Lead'}</span>
+              </h3>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Optional: Provide a reason for rejection..."
+                className="w-full p-2 border border-gray-300 dark:border-zinc-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-zinc-700 text-gray-800 dark:text-zinc-100"
+                rows={3}
+              />
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowRejectionModal(false);
+                    setRejectionReason('');
+                    setPendingRejectNotification(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:text-zinc-200 dark:bg-zinc-600 dark:hover:bg-zinc-500 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectSubmit}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   } catch (e) {
     console.error("[App.tsx] CRITICAL RENDER ERROR in App component:", e);
+    // The existing complex error boundary return
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-red-50 text-red-700 dark:bg-red-950/70 dark:text-red-200">
         <h1 className="text-2xl font-bold mb-4">Application Error</h1>

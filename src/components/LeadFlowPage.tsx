@@ -4,6 +4,7 @@ import { LIGHT_LEAD_STAGE_CHART_COLORS, DARK_LEAD_STAGE_CHART_COLORS } from '../
 import LoadingSpinner from './shared/LoadingSpinner'; 
 import ErrorDisplay from './shared/ErrorDisplay';   
 import { useTheme } from '../context/ThemeContext';
+import MeetingScheduledTagIcon from './shared/MeetingScheduledTagIcon';
 
 const FrostIcon = ({ className }: { className?: string }) => (
   <svg 
@@ -38,7 +39,6 @@ interface LeadFlowPageProps {
 
 const PROGRESSION_STAGES_ORDER: LeadStage[] = [
   LeadStage.COLD,
-  LeadStage.MEETING_SCHEDULED,
   LeadStage.WARM,
   LeadStage.HOT,
   LeadStage.CLOSED,
@@ -52,6 +52,8 @@ function LeadFlowPage({ leads, isLoading, error, navigateToFilteredLeadsPage, us
   const [hoveredStage, setHoveredStage] = useState<LeadStage | null>(null);
   const leadStageColors = theme === 'dark' ? DARK_LEAD_STAGE_CHART_COLORS : LIGHT_LEAD_STAGE_CHART_COLORS;
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
+
+  const meetingsTaggedCount = useMemo(() => leads.filter(lead => lead.tags?.includes('Meeting Scheduled')).length, [leads]);
 
   const leadsByStageCounts = useMemo(() => {
     const counts: Record<LeadStage, number> = Object.values(LeadStage).reduce((acc, stage) => {
@@ -207,6 +209,7 @@ function LeadFlowPage({ leads, isLoading, error, navigateToFilteredLeadsPage, us
                 <h3 id={`stage-title-${stage.replace(/\s+/g, '-')}`} className={`text-lg font-semibold ${stageNameTextColorClass} flex items-center ${isTerminal ? 'ml-2' : ''}`}>
                   {iconComponent}
                   {stage}
+                  {/* M-tag icon logic removed from here as MEETING_SCHEDULED stage is removed */}
                 </h3>
               </div>
               
@@ -224,6 +227,35 @@ function LeadFlowPage({ leads, isLoading, error, navigateToFilteredLeadsPage, us
             </div>
           );
         })}
+
+        {/* New Card for Tagged Meetings */}
+        {meetingsTaggedCount > 0 && (
+          <div
+            key="tagged-meetings"
+            className="relative p-5 rounded-2xl transition-all duration-300 ease-in-out focus:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 dark:focus-within:ring-offset-zinc-950 overflow-hidden flex flex-col justify-between min-h-[160px] shadow-glass-neumorphic dark:shadow-dark-glass-neumorphic"
+            style={{ borderWidth: '1px', borderStyle: 'solid', borderColor: theme === 'dark' ? '#52525B' : '#D1D5DB' }} // Example neutral border
+            role="group"
+            aria-labelledby="stage-title-tagged-meetings"
+            onClick={() => navigateToFilteredLeadsPage('MEETING_SCHEDULED_TAG')}
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToFilteredLeadsPage('MEETING_SCHEDULED_TAG');}}
+          >
+            <div className="flex items-start justify-between">
+              <h3 id="stage-title-tagged-meetings" className="text-lg font-semibold text-gray-700 dark:text-zinc-200 flex items-center">
+                <MeetingScheduledTagIcon className="mr-2" /> {/* Using the M-tag icon */}
+                Meetings (Tag)
+              </h3>
+            </div>
+            <div className="mt-auto">
+              <p className="text-5xl font-bold" style={{ color: theme === 'dark' ? '#A1A1AA' : '#71717A' }}> {/* Example neutral count color */}
+                {meetingsTaggedCount}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-zinc-400">
+                {meetingsTaggedCount === 1 ? "Lead" : "Leads"} with this tag
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <footer className="text-center py-8 text-gray-400 dark:text-zinc-500 border-t border-gray-300/50 dark:border-zinc-800/60 mt-12">

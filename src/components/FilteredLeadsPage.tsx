@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useCallback
 import { Lead, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole } from '../types';
 import { updateLeadDetails as updateLeadDetailsService, deleteLeadById as deleteLeadService, updateCoreLeadDetails as updateCoreLeadDetailsService, assignLeadToUser as assignLeadToUserService } from '../../services/dataService';
 import LeadsTable from './LeadsTable';
@@ -59,7 +59,8 @@ const isDateTomorrow = (date: Date): boolean => {
 };
 
 interface FilteredLeadsPageProps {
-  stage: LeadStage;
+  stage: LeadStage | null; // Keep stage for stage-based filtering
+  tag: string | null;    // Add/Ensure tag is present
   leads: Lead[]; 
   isLoading: boolean;
   error: string | null;
@@ -76,6 +77,7 @@ interface FilteredLeadsPageProps {
 
 const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
   stage,
+  tag, // Destructure tag
   leads, 
   isLoading,
   error,
@@ -99,37 +101,45 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
 
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
 
-  const sortedStageLeads = useMemo(() => {
-    const leadsInThisStage = leads.filter(lead => lead.stage === stage);
-
-    if (stage === LeadStage.MEETING_SCHEDULED) {
-        leadsInThisStage.sort((a, b) => {
-            const aDate = a.meetingDate;
-            const bDate = b.meetingDate;
-            if (!aDate && !bDate) return 0; 
-            if (!aDate) return 1;  
-            if (!bDate) return -1; 
-            const aIsToday = isDateToday(aDate);
-            const bIsToday = isDateToday(bDate);
-            if (aIsToday && bIsToday) return aDate.getTime() - bDate.getTime();
-            if (aIsToday) return -1; 
-            if (bIsToday) return 1;  
-            const aIsTomorrow = isDateTomorrow(aDate);
-            const bIsTomorrow = isDateTomorrow(bDate);
-            if (aIsTomorrow && bIsTomorrow) return aDate.getTime() - bDate.getTime();
-            if (aIsTomorrow) return -1; 
-            if (bIsTomorrow) return 1;  
-            const startOfToday = new Date();
-            startOfToday.setHours(0, 0, 0, 0); 
-            const aIsOtherFuture = aDate.getTime() >= startOfToday.getTime();
-            const bIsOtherFuture = bDate.getTime() >= startOfToday.getTime();
-            if (aIsOtherFuture && !bIsOtherFuture) return -1; 
-            if (!aIsOtherFuture && bIsOtherFuture) return 1;  
-            return aDate.getTime() - bDate.getTime(); 
+  const filteredAndSortedLeads = useMemo(() => {
+    let tempLeads: Lead[] = [];
+    if (tag) { // Prioritize tag filtering if tag exists
+      tempLeads = leads.filter(lead => lead.tags?.includes(tag));
+      // Special sorting for "Meeting Scheduled" tag
+      if (tag === 'Meeting Scheduled') {
+        tempLeads.sort((a, b) => {
+          const aDate = a.meetingDate;
+          const bDate = b.meetingDate;
+          if (!aDate && !bDate) return 0;
+          if (!aDate) return 1;
+          if (!bDate) return -1;
+          const aIsToday = isDateToday(aDate); // Ensure isDateToday, isDateTomorrow are available
+          const bIsToday = isDateToday(bDate);
+          if (aIsToday && bIsToday) return aDate.getTime() - bDate.getTime();
+          if (aIsToday) return -1;
+          if (bIsToday) return 1;
+          const aIsTomorrow = isDateTomorrow(aDate);
+          const bIsTomorrow = isDateTomorrow(bDate);
+          if (aIsTomorrow && bIsTomorrow) return aDate.getTime() - bDate.getTime();
+          if (aIsTomorrow) return -1;
+          if (bIsTomorrow) return 1;
+          const startOfToday = new Date();
+          startOfToday.setHours(0, 0, 0, 0);
+          const aIsOtherFuture = aDate.getTime() >= startOfToday.getTime();
+          const bIsOtherFuture = bDate.getTime() >= startOfToday.getTime();
+          if (aIsOtherFuture && !bIsOtherFuture) return -1;
+          if (!aIsOtherFuture && bIsOtherFuture) return 1;
+          return aDate.getTime() - bDate.getTime();
         });
+      }
+    } else if (stage) { // Fallback to stage filtering if no tag
+      tempLeads = leads.filter(lead => lead.stage === stage);
+      // Note: Old 'if (stage === LeadStage.MEETING_SCHEDULED)' sorting block removed as it's covered by tag now
+    } else {
+      tempLeads = []; // Or all leads, depending on desired behavior if neither is present
     }
-    return leadsInThisStage;
-  }, [leads, stage]);
+    return tempLeads;
+  }, [leads, stage, tag]);
 
 
   useEffect(() => {
@@ -150,18 +160,18 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
     };
   }, [meetingPopoverState]);
 
-  const handleOpenLeadDetailModal = (lead: Lead) => {
+  const handleOpenLeadDetailModal = useCallback((lead: Lead) => {
     setSelectedLead(lead);
     setIsLeadDetailModalOpen(true);
     setGlobalUpdateMessage(null);
-  };
+  }, []);
 
-  const handleCloseLeadDetailModal = () => {
+  const handleCloseLeadDetailModal = useCallback(() => {
     setSelectedLead(null);
     setIsLeadDetailModalOpen(false);
-  };
+  }, []);
 
-  const handleUpdateLeadDetailsForModal = async (leadId: string, updates: LeadUpdatePayload) => {
+  const handleUpdateLeadDetailsForModal = useCallback(async (leadId: string, updates: LeadUpdatePayload) => {
     setGlobalUpdateMessage(null);
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
@@ -188,9 +198,9 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
       setGlobalUpdateMessage({type: 'error', message: `Failed to update details for "${originalLeadName}": ${errorMessage}`});
       throw err; 
     }
-  };
+  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp]);
 
-  const handleUpdateCoreLeadDetailsForModal = async (leadId: string, updates: CoreLeadDataUpdate) => {
+  const handleUpdateCoreLeadDetailsForModal = useCallback(async (leadId: string, updates: CoreLeadDataUpdate) => {
     setGlobalUpdateMessage(null);
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
@@ -210,9 +220,9 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to update core details for "${originalLeadName}": ${errorMessage}` });
         throw err;
     }
-  };
+  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead]);
 
-  const handleDeleteLeadForModal = async (leadId: string) => {
+  const handleDeleteLeadForModal = useCallback(async (leadId: string) => {
     setGlobalUpdateMessage(null);
     const leadToDelete = leads.find(l => l.id === leadId);
     const leadName = leadToDelete?.name || 'Lead';
@@ -230,9 +240,9 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to delete lead "${leadName}": ${errorMessage}` });
         throw err;
     }
-  };
+  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal]);
 
-   const handleAssignLeadForModal = async (leadId: string, targetUserId: string | null) => {
+   const handleAssignLeadForModal = useCallback(async (leadId: string, targetUserId: string | null) => {
     setGlobalUpdateMessage(null);
     const leadToAssign = leads.find(l => l.id === leadId);
     const leadName = leadToAssign?.name || 'Lead';
@@ -254,15 +264,15 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
       setGlobalUpdateMessage({ type: 'error', message: `Failed to assign lead "${leadName}": ${errorMessage}` });
       throw err;
     }
-  };
+  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead]);
 
-  const handleMeetingIconClickInTable = (lead: Lead, anchorEl: HTMLElement) => {
+  const handleMeetingIconClickInTable = useCallback((lead: Lead, anchorEl: HTMLElement) => {
     if (meetingPopoverState?.lead.id === lead.id && meetingPopoverState?.anchorEl === anchorEl) {
       setMeetingPopoverState(null); 
     } else {
       setMeetingPopoverState({ lead, anchorEl });
     }
-  };
+  }, [meetingPopoverState]);
   
   const calculatePopoverPosition = (anchor: HTMLElement | null): React.CSSProperties => {
     if (!anchor) {
@@ -307,8 +317,8 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
   }
 
 
-  if (isLoading) return <LoadingSpinner message={`Loading ${stage} Leads...`} />;
-  if (error && !sortedStageLeads.length) return <div className="p-6 md:p-10"><ErrorDisplay message={error} title="Filtered Leads Data Error:" /></div>;
+  if (isLoading) return <LoadingSpinner message={`Loading ${tag ? tag : stage} Leads...`} />;
+  if (error && !filteredAndSortedLeads.length) return <div className="p-6 md:p-10"><ErrorDisplay message={error} title="Filtered Leads Data Error:" /></div>;
   
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-8 relative"> 
@@ -316,7 +326,9 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
       <header className="flex flex-col sm:flex-row justify-between items-center pb-6 border-b border-gray-300/50 dark:border-zinc-800/60">
         <div className="flex items-center">
             <h1 className="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">
-                Leads: <span className="text-orange-500 dark:text-orange-400">{stage}</span> Stage
+              Leads: <span className="text-orange-500 dark:text-orange-400">
+                {tag ? `${tag} (Tag)` : (stage ? `${stage} Stage` : 'View')}
+              </span>
             </h1>
         </div>
         <button
@@ -330,26 +342,23 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
           Back to Lead Flow
         </button>
       </header>
-      {stage === LeadStage.MEETING_SCHEDULED && (
-         <p className="text-gray-500 dark:text-zinc-400 -mt-4">
-            Leads with scheduled meetings{isSuperUser ? "" : " (assigned to you)"}. Sorted by urgency. Click <VideoCameraIcon className="inline w-4 h-4 text-indigo-500 dark:text-indigo-400" /> for details.
-         </p>
-      )}
+      {/* Removed stage === LeadStage.MEETING_SCHEDULED specific paragraph */}
 
 
-      {error && sortedStageLeads.length > 0 && <ErrorDisplay message={error} title="Filtered Leads Data Warning:" />}
+      {error && filteredAndSortedLeads.length > 0 && <ErrorDisplay message={error} title="Filtered Leads Data Warning:" />}
 
       <GlassContainer>
-        {sortedStageLeads.length > 0 ? (
+        {filteredAndSortedLeads.length > 0 ? (
           <LeadsTable
-            leads={sortedStageLeads}
+            leads={filteredAndSortedLeads}
             onRowClick={handleOpenLeadDetailModal}
-            onMeetingIconClick={stage === LeadStage.MEETING_SCHEDULED ? handleMeetingIconClickInTable : undefined}
+            onMeetingIconClick={tag === 'Meeting Scheduled' ? handleMeetingIconClickInTable : undefined}
             currentUserProfile={userProfile}
           />
         ) : (
           <p className="text-gray-500 dark:text-zinc-400 text-center py-10 text-lg">
-            No leads found in the <span className="font-semibold text-orange-500 dark:text-orange-400">{stage}</span> stage
+            No leads found
+            {tag ? ` with tag "${tag}"` : (stage ? ` in the ${stage} stage` : '')}
             {isSuperUser ? "." : " assigned to you."}
           </p>
         )}

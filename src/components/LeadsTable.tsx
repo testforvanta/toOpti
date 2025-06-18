@@ -3,6 +3,7 @@ import { Lead, EmailType, LeadStage, UserProfile, UserRole } from '../types';
 // import { useTheme } from '../../context/ThemeContext'; // Removed as theme variable was unused
 import WhatsAppIcon from './shared/WhatsAppIcon'; 
 import { sanitizePhoneNumberForWhatsApp } from '../../utils/phoneNumberUtils';
+import MeetingScheduledTagIcon from './shared/MeetingScheduledTagIcon';
 
 const VideoCameraIconMini = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || "w-4 h-4"}>
@@ -200,7 +201,7 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, onRowClick, onMeetingIco
       {sortedLeads.length === 0 && !searchTerm && <p className="text-gray-500 dark:text-zinc-400 text-center py-4">No leads found {isSuperUser ? "." : "assigned to you."}</p>}
       {sortedLeads.length === 0 && searchTerm && <p className="text-gray-500 dark:text-zinc-400 text-center py-4">No leads found for: <span className="text-blue-600 dark:text-blue-400 font-medium">{searchTerm}</span></p>}
       {sortedLeads.length > 0 && (
-        <div className="rounded-lg overflow-x-auto border border-gray-200/80 dark:border-zinc-800/70">
+        <div className="rounded-lg overflow-x-auto border border-gray-200/80 dark:border-zinc-800/70 max-h-[650px] overflow-y-auto">
           <table className="min-w-full divide-y divide-gray-200/80 dark:divide-zinc-800/70">
             <thead className="bg-gray-50/70 backdrop-blur-sm dark:bg-zinc-900/80 hidden sm:table-header-group">
               <tr>
@@ -256,23 +257,27 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, onRowClick, onMeetingIco
                             title="Open WhatsApp chat"
                             style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            <WhatsAppIcon className="w-5 h-5" style={{ color: '#25D366' }} />
+                            <WhatsAppIcon className="w-4 h-4" style={{ color: '#25D366' }} />
                           </button>
                         )}
                     </div>
                   </td>
                   <td className="px-4 py-3 sm:px-5 sm:py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center">
+                    <div className="flex items-center space-x-2"> {/* Added a flex container for better spacing */}
                       <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getLeadStagePillStyle(lead.stage)}`}> 
                         {lead.stage} 
                       </span>
+                      {/* Render MeetingScheduledTagIcon if meetingDate exists */}
+                      {lead.meetingDate && (
+                        <MeetingScheduledTagIcon />
+                      )}
                       {lead.meetingDate && onMeetingIconClick && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation(); 
                             onMeetingIconClick(lead, e.currentTarget);
                           }}
-                          className={`ml-2 p-1 rounded-full transition-colors focus:outline-none focus:ring-1 focus:ring-offset-0 dark:focus:ring-offset-zinc-900 ${getMeetingIconStyle(lead.meetingDate).replace(/hover:bg-(\w+)-(\d+)/, 'focus:ring-$1-500 dark:focus:ring-$1-400')}`}
+                          className={`p-1 rounded-full transition-colors focus:outline-none focus:ring-1 focus:ring-offset-0 dark:focus:ring-offset-zinc-900 ${getMeetingIconStyle(lead.meetingDate).replace(/hover:bg-(\w+)-(\d+)/, 'focus:ring-$1-500 dark:focus:ring-$1-400')}`}
                           aria-label={`View meeting details for ${lead.name}`}
                         >
                           <VideoCameraIconMini className="w-4 h-4" />
