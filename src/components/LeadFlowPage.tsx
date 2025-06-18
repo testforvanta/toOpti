@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Lead, LeadStage, UserProfile, UserRole } from '../../types';
-import { LIGHT_LEAD_STAGE_CHART_COLORS, DARK_LEAD_STAGE_CHART_COLORS } from '../../constants';
+import { Lead, LeadStage, UserProfile, UserRole } from '../types';
+import { LIGHT_LEAD_STAGE_CHART_COLORS, DARK_LEAD_STAGE_CHART_COLORS } from '../constants';
 import LoadingSpinner from './shared/LoadingSpinner'; 
 import ErrorDisplay from './shared/ErrorDisplay';   
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 
 const FrostIcon = ({ className }: { className?: string }) => (
   <svg 

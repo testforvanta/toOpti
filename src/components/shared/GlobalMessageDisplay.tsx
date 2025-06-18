@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { GlobalMessageConfig } from '../../types'; // Import type
+import { GlobalMessageConfig } from '../../../types'; // Import type
 
 interface GlobalMessageDisplayProps {
   messageConfig: GlobalMessageConfig | null;

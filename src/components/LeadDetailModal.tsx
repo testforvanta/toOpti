@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, LeadStage, MeetingDetailsData, LeadUpdatePayload, PaymentProgressState, PaymentDetails, UserProfile, UserRole, NotificationType } from '../src/types'; 
+import { Lead, LeadStage, MeetingDetailsData, LeadUpdatePayload, PaymentProgressState, PaymentDetails, UserProfile, UserRole, NotificationType } from '../types';
 import MeetingDetailsDisplayModal from './MeetingDetailsDisplayModal'; 
 import MeetLinkInputModal from './MeetLinkInputModal'; 
 import PaymentDetailsInputModal from './PaymentDetailsInputModal';
 import EditLeadDetailsModal from './EditLeadDetailsModal'; 
 import WhatsAppIcon from './shared/WhatsAppIcon'; 
-import { sanitizePhoneNumberForWhatsApp } from '../utils/phoneNumberUtils';
+import { sanitizePhoneNumberForWhatsApp } from '../../utils/phoneNumberUtils';
 import { CoreLeadDataUpdate } from '../App'; 
-import { updateLeadStickyNote } from '../services/dataService';
+import { updateLeadStickyNote } from '../../services/dataService';
 import { useTheme } from '../context/ThemeContext';
 import { LIGHT_LEAD_STAGE_CHART_COLORS, DARK_LEAD_STAGE_CHART_COLORS } from '../constants';
 import MeetingScheduledTagIcon from './shared/MeetingScheduledTagIcon';
-import { useNotifications } from '../src/context/NotificationContext';
+import { useNotifications } from '../context/NotificationContext';
 
 
 interface LeadDetailModalProps {

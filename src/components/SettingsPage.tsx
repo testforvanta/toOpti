@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, UserRole } from '../src/types';
+import { UserProfile, UserRole } from '../types';
 import {
   fetchBusinessSettings,
   updateBusinessSettings,
@@ -7,8 +7,8 @@ import {
   addBusinessListing,
   updateBusinessListing,
   deleteBusinessListing
-} from '../services/businessSettingsService';
-import { supabase } from '../services/supabaseClient';
+} from '../../services/businessSettingsService';
+import { supabase } from '../../services/supabaseClient';
 import { useNavigate } from 'react-router-dom'; // If not using react-router, replace with a prop or custom handler
 
 interface SettingsPageProps {

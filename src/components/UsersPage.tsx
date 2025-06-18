@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { UserProfile, UserRole } from '../src/types';
+import { UserProfile, UserRole } from '../types';
 import LoadingSpinner from './shared/LoadingSpinner';
 import ErrorDisplay from './shared/ErrorDisplay';
 import GlassContainer from './shared/GlassContainer';

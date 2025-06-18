@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { UserRole, Page } from '../types'; // Import UserRole and Page
 
 // Page type is now imported from types.ts

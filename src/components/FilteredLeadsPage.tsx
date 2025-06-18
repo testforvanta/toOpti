@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Lead, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole } from '../../types'; 
+import { Lead, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole } from '../types';
 import { updateLeadDetails as updateLeadDetailsService, deleteLeadById as deleteLeadService, updateCoreLeadDetails as updateCoreLeadDetailsService, assignLeadToUser as assignLeadToUserService } from '../../services/dataService';
 import LeadsTable from './LeadsTable';
 import LeadDetailModal from './LeadDetailModal';
@@ -7,7 +7,7 @@ import LoadingSpinner from './shared/LoadingSpinner';
 import ErrorDisplay from './shared/ErrorDisplay';   
 import GlobalMessageDisplay from './shared/GlobalMessageDisplay'; 
 import GlassContainer from './shared/GlassContainer'; 
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { CoreLeadDataUpdate } from '../App'; 
 
 

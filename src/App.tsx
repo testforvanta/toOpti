@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import DashboardPage from '../components/DashboardPage';
-import LeadFlowPage from '../components/LeadFlowPage'; 
+import DashboardPage from './components/DashboardPage';
+import LeadFlowPage from './components/LeadFlowPage';
 import SidePanel from './components/SidePanel'; 
-import FilteredLeadsPage from '../components/FilteredLeadsPage'; 
-import UsersPage from '../components/UsersPage'; 
-import UserDetailPage from '../components/UserDetailPage';
-import SettingsPage from '../components/SettingsPage';
+import FilteredLeadsPage from './components/FilteredLeadsPage';
+import UsersPage from './components/UsersPage';
+import UserDetailPage from './components/UserDetailPage';
+import SettingsPage from './components/SettingsPage';
 import { LeadStage, LeadUpdatePayload, UserProfile, Lead, UserRole, NewLeadData, ActivityLog, Page } from './types';
 import { 
   fetchLeads as fetchLeadsService, 
@@ -14,17 +14,17 @@ import {
   fetchActivityLogsForUser,
   deleteLeadById
 } from '../services/dataService'; 
-import { useAuth } from '../auth/AuthContext'; 
+import { useAuth } from './auth/AuthContext';
 import { fetchUserProfile } from '../services/fetchUserProfile';
-import LoginPage from '../components/LoginPage'; 
-import LoadingSpinner from '../components/shared/LoadingSpinner'; 
-import ErrorDisplay from '../components/shared/ErrorDisplay'; 
+import LoginPage from './components/LoginPage';
+import LoadingSpinner from './components/shared/LoadingSpinner';
+import ErrorDisplay from './components/shared/ErrorDisplay';
 import NotificationBell from './components/NotificationBell';
 import NotificationPanel from './components/NotificationPanel';
 import MobileNotificationDropdown from './components/MobileNotificationDropdown';
 import { useNotifications } from './context/NotificationContext';
 import { NotificationType, NotificationAction } from './types';
-import LeadDetailModal from '../components/LeadDetailModal';
+import LeadDetailModal from './components/LeadDetailModal';
 
 export type CoreLeadDataUpdate = Partial<Pick<Lead, 'name' | 'brandName' | 'email' | 'contactNumber' | 'website' | 'typeOfBusiness'>>;
 

@@ -1,1 +1,0 @@
-// This file has been removed. All types are now unified in src/types.ts.

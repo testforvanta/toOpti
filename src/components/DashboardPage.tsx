@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lead, BusinessType, EmailType, TimeSeriesDataItem, ChartDataItem, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole, NewLeadData } from '../../types'; 
+import { Lead, BusinessType, EmailType, TimeSeriesDataItem, ChartDataItem, LeadStage, GlobalMessageConfig, LeadUpdatePayload, UserProfile, UserRole, NewLeadData } from '../types';
 import { updateLeadDetails as updateLeadDetailsService, addLead as addLeadService, deleteLeadById as deleteLeadService, updateCoreLeadDetails as updateCoreLeadDetailsService, assignLeadToUser as assignLeadToUserService } from '../../services/dataService'; 
 import MetricCard from './MetricCard';
 import LeadsTable from './LeadsTable';
-import LeadDetailModal from '../../components/LeadDetailModal'; // Fixed import path
+import LeadDetailModal from './LeadDetailModal'; // Fixed import path
 import AddLeadModal from './AddLeadModal';
 import LeadsOverTimeChart from './charts/LeadsOverTimeChart';
 import BusinessTypePieChart from './charts/BusinessTypePieChart';
@@ -13,7 +13,7 @@ import ErrorDisplay from './shared/ErrorDisplay';
 import GlobalMessageDisplay from './shared/GlobalMessageDisplay'; 
 import GlassContainer from './shared/GlassContainer'; 
 import { CoreLeadDataUpdate } from '../App'; 
-import DateFilterBar from '../../components/DateFilterBar';
+import DateFilterBar from './DateFilterBar';
 
 
 interface DashboardPageProps {

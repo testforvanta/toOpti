@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, ActivityLog, ActivityLogActionType, ChartDataItem, UserRole } from '../src/types';
+import { UserProfile, ActivityLog, ActivityLogActionType, ChartDataItem, UserRole } from '../types';
 import LoadingSpinner from './shared/LoadingSpinner';
 import ErrorDisplay from './shared/ErrorDisplay';
 import UserProductivityPieChart from './charts/UserProductivityPieChart';
 // Import the renamed function
-import { fetchUserLeadStageCountsForMonthEnd } from '../services/dataService'; 
+import { fetchUserLeadStageCountsForMonthEnd } from '../../services/dataService';
 import GlassContainer from './shared/GlassContainer';
 import { useTheme } from '../context/ThemeContext';
 
