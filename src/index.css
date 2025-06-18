@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  scroll-behavior: smooth;
+  @apply bg-[#FFFDF6] text-gray-700; /* Light mode background & text */
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out; 
+}
+
+/* Dark mode base styles */
+.dark body {
+  @apply bg-zinc-950 text-zinc-300; /* Dark mode background (zinc-950) & text (zinc-300) */
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05); /* Light track */
+}
+.dark ::-webkit-scrollbar-track {
+  @apply bg-zinc-900; /* zinc-900 */
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-[#BCBFC0]; /* Light thumb */
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-zinc-700; /* zinc-700 thumb */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400; /* Lighter thumb on hover */
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-600; /* zinc-600 thumb on hover */
+}
+
+/* Ensure react-select menu (used in recharts tooltips) has high z-index */
+.recharts-tooltip-wrapper {
+  z-index: 1000 !important; /* Example high z-index */
+}
+
+/* Frosted glass scrollbar styling for modals if needed */
+.modal-scrollable::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent track for light */
+}
+.dark .modal-scrollable::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1); /* Semi-transparent track for dark */
+}
+.modal-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2); /* Darker thumb for light */
+    border-radius: 4px;
+}
+.dark .modal-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2); /* Lighter thumb for dark */
+    border-radius: 4px;
+}
+.modal-scrollable::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+.dark .modal-scrollable::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes slidein {
+  from {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slidein {
+  animation: slidein 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
