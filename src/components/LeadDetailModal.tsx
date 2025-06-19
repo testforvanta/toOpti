@@ -5,6 +5,7 @@ import MeetLinkInputModal from './MeetLinkInputModal';
 import { fetchBusinessListings } from '../../services/businessSettingsService'; // Import for fetching services
 import PaymentDetailsInputModal from './PaymentDetailsInputModal';
 import EditLeadDetailsModal from './EditLeadDetailsModal'; 
+import ServiceDetailCard from './ServiceDetailCard'; // Import the new card component
 import WhatsAppIcon from './shared/WhatsAppIcon'; 
 import { sanitizePhoneNumberForWhatsApp } from '../../utils/phoneNumberUtils';
 import { CoreLeadDataUpdate } from '../App'; 
@@ -92,6 +93,9 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [currentSelectedServices, setCurrentSelectedServices] = useState<string[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [serviceFetchError, setServiceFetchError] = useState<string | null>(null);
+
+  // State for viewing service details
+  const [serviceForDetailView, setServiceForDetailView] = useState<BusinessListing | null>(null);
 
 
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
@@ -834,22 +838,36 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
                 {currentSelectedServices.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2 py-2">
-                    {currentSelectedServices.map(serviceName => (
-                      <span key={serviceName} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-700/30 dark:text-blue-300 shadow-sm">
-                        {serviceName}
-                        {canEditLead && !isUpdating && (
+                    {currentSelectedServices.map(serviceName => {
+                      const serviceDetail = availableServices.find(s => s.name === serviceName);
+                      return (
+                        <div
+                          key={serviceName}
+                          className="inline-flex items-center rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-700/30 shadow-sm cursor-default"
+                        >
                           <button
-                            onClick={() => handleRemoveServiceTag(serviceName)}
-                            className="ml-1.5 p-0.5 rounded-full text-blue-500 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            aria-label={`Remove ${serviceName} service`}
+                            type="button"
+                            onClick={() => serviceDetail && setServiceForDetailView(serviceDetail)}
+                            disabled={!serviceDetail}
+                            className={`px-3 py-1 rounded-l-full text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-600/40 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed`}
+                            title={serviceDetail ? `View details for ${serviceName}` : 'Service details not available'}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            {serviceName}
                           </button>
-                        )}
-                      </span>
-                    ))}
+                          {canEditLead && !isUpdating && (
+                            <button
+                              onClick={() => handleRemoveServiceTag(serviceName)}
+                              className="p-1 rounded-r-full text-blue-500 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-600/50 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              aria-label={`Remove ${serviceName} service`}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                  {currentSelectedServices.length === 0 && <p className="text-xs text-gray-400 dark:text-zinc-500 italic">No services selected yet.</p>}
@@ -949,6 +967,12 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
       {lead && <PaymentDetailsInputModal isOpen={isPaymentDetailsModalOpen} onClose={() => setIsPaymentDetailsModalOpen(false)} onSubmit={handlePaymentDetailsSubmitted} leadName={lead.name || "Selected Lead"} currentTotalAmountQuoted={lead.paymentDetails?.totalAmountQuoted} currentAmountPaid={lead.paymentDetails?.amountPaid} currentPaymentMode={lead.paymentDetails?.paymentMode} existingPaymentDateForDisplay={lead.paymentDetails?.paymentDate ? formatDateTimeString(lead.paymentDetails.paymentDate) : undefined} isSuperUser={canEditLead} />}
       {lead && canEditLead && <EditLeadDetailsModal isOpen={isEditLeadModalOpen} onClose={() => setIsEditLeadModalOpen(false)} currentLead={lead} onSave={handleSaveCoreLeadDetails} />}
+
+      <ServiceDetailCard
+        service={serviceForDetailView}
+        isOpen={!!serviceForDetailView}
+        onClose={() => setServiceForDetailView(null)}
+      />
 
       {/* Basic user delete button */}
       {userProfile?.role === UserRole.BASIC_USER && isLeadAssignedToCurrentUser && (
