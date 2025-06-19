@@ -118,11 +118,11 @@ const QuotationModal: React.FC < QuotationModalProps > = ({
 
     try {
       const canvas = await html2canvas(pdfContentRef.current, {
-        scale: 2, // Higher scale for better quality
+        scale: 1, // Further reduced scale to 1 for maximum size reduction from resolution
         useCORS: true, // If you have external images
         backgroundColor: theme === 'dark' ? '#18181b' : '#ffffff', // Match modal background
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.75); // Switched to JPEG with 0.75 quality
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'pt', // points
@@ -150,7 +150,7 @@ const QuotationModal: React.FC < QuotationModalProps > = ({
       const y = margin;
 
 
-      pdf.addImage(imgData, 'PNG', x, y, newImgWidth, newImgHeight);
+      pdf.addImage(imgData, 'JPEG', x, y, newImgWidth, newImgHeight, undefined, 'FAST'); // Switched to JPEG format
       const pdfBlob = pdf.output('blob');
       const url = URL.createObjectURL(pdfBlob);
       setPdfUrl(url);
