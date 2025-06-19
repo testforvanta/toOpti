@@ -979,7 +979,19 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           leadName={lead.name || "Selected Lead"}
       />
 
-      {lead && <PaymentDetailsInputModal isOpen={isPaymentDetailsModalOpen} onClose={() => setIsPaymentDetailsModalOpen(false)} onSubmit={handlePaymentDetailsSubmitted} leadName={lead.name || "Selected Lead"} currentTotalAmountQuoted={lead.paymentDetails?.totalAmountQuoted} currentAmountPaid={lead.paymentDetails?.amountPaid} currentPaymentMode={lead.paymentDetails?.paymentMode} existingPaymentDateForDisplay={lead.paymentDetails?.paymentDate ? formatDateTimeString(lead.paymentDetails.paymentDate) : undefined} isSuperUser={canEditLead} />}
+      {lead && actorUserProfile && <PaymentDetailsInputModal
+            isOpen={isPaymentDetailsModalOpen}
+            onClose={() => setIsPaymentDetailsModalOpen(false)}
+            onSubmit={handlePaymentDetailsSubmitted}
+            leadName={lead.name || "Selected Lead"}
+            currentTotalAmountQuoted={lead.paymentDetails?.totalAmountQuoted}
+            currentAmountPaid={lead.paymentDetails?.amountPaid}
+            currentPaymentMode={lead.paymentDetails?.paymentMode}
+            existingPaymentDateForDisplay={lead.paymentDetails?.paymentDate ? formatDateTimeString(lead.paymentDetails.paymentDate) : undefined}
+            isSuperUser={canEditLead}
+            lead={lead} // Pass the full lead object
+            actorUserProfile={actorUserProfile} // Pass the actor user profile
+      />}
       {lead && canEditLead && <EditLeadDetailsModal isOpen={isEditLeadModalOpen} onClose={() => setIsEditLeadModalOpen(false)} currentLead={lead} onSave={handleSaveCoreLeadDetails} />}
       {lead && actorUserProfile && (
         <QuotationModal
