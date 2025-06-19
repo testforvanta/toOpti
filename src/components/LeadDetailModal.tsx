@@ -4,9 +4,10 @@ import MeetingDetailsDisplayModal from './MeetingDetailsDisplayModal';
 import MeetLinkInputModal from './MeetLinkInputModal'; 
 import { fetchBusinessListings } from '../../services/businessSettingsService'; // Import for fetching services
 import PaymentDetailsInputModal from './PaymentDetailsInputModal';
-import EditLeadDetailsModal from './EditLeadDetailsModal'; 
+import EditLeadDetailsModal from './EditLeadDetailsModal';
 import ServiceDetailCard from './ServiceDetailCard'; // Import the new card component
-import WhatsAppIcon from './shared/WhatsAppIcon'; 
+import QuotationModal from './QuotationModal'; // Import the new QuotationModal
+import WhatsAppIcon from './shared/WhatsAppIcon';
 import { sanitizePhoneNumberForWhatsApp } from '../../utils/phoneNumberUtils';
 import { CoreLeadDataUpdate } from '../App'; 
 import { updateLeadStickyNote } from '../../services/dataService';
@@ -82,8 +83,10 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [isPaymentDetailsModalOpen, setIsPaymentDetailsModalOpen] = useState(false);
   const [paymentModalMode, setPaymentModalMode] = useState<'initial' | 'update'>('initial');
   
-  const [isEditLeadModalOpen, setIsEditLeadModalOpen] = useState(false); 
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>(''); 
+  const [isEditLeadModalOpen, setIsEditLeadModalOpen] = useState(false);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('');
+
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false); // State for quotation modal
 
   const [isEditingStickyNote, setIsEditingStickyNote] = useState(false);
   const [currentStickyNote, setCurrentStickyNote] = useState('');
@@ -201,22 +204,23 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (isEditLeadModalOpen) setIsEditLeadModalOpen(false);
+        if (isQuotationModalOpen) setIsQuotationModalOpen(false);
+        else if (isEditLeadModalOpen) setIsEditLeadModalOpen(false);
         else if (isPaymentDetailsModalOpen) setIsPaymentDetailsModalOpen(false);
         else if (isMeetLinkModalOpen) { setIsMeetLinkModalOpen(false); setMeetLinkModalPurpose(null); }
         else if (isMeetingDetailsDisplayModalOpen) setIsMeetingDetailsDisplayModalOpen(false);
-        else onClose(); 
+        else onClose();
       }
     };
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      if (!isMeetingDetailsDisplayModalOpen && !isMeetLinkModalOpen && !isPaymentDetailsModalOpen && !isEditLeadModalOpen) { 
+      if (!isMeetingDetailsDisplayModalOpen && !isMeetLinkModalOpen && !isPaymentDetailsModalOpen && !isEditLeadModalOpen && !isQuotationModalOpen) {
         const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
         const modal = document.getElementById('lead-detail-modal-content');
         if (modal) {
           const firstFocusableElement = modal.querySelectorAll(focusableElements)[0] as HTMLElement;
           if (firstFocusableElement) {
-              setTimeout(() => firstFocusableElement.focus(), 100); 
+              setTimeout(() => firstFocusableElement.focus(), 100);
           }
         }
       }
@@ -224,7 +228,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     return () => {
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, onClose, isMeetingDetailsDisplayModalOpen, isMeetLinkModalOpen, isPaymentDetailsModalOpen, isEditLeadModalOpen]);
+  }, [isOpen, onClose, isMeetingDetailsDisplayModalOpen, isMeetLinkModalOpen, isPaymentDetailsModalOpen, isEditLeadModalOpen, isQuotationModalOpen]);
 
   if (!isOpen || !lead) {
     return null;
@@ -603,12 +607,12 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="lead-detail-modal-title"
-        onClick={isMeetingDetailsDisplayModalOpen || isMeetLinkModalOpen || isPaymentDetailsModalOpen || isEditLeadModalOpen ? undefined : onClose} 
+        onClick={isMeetingDetailsDisplayModalOpen || isMeetLinkModalOpen || isPaymentDetailsModalOpen || isEditLeadModalOpen || isQuotationModalOpen ? undefined : onClose}
       >
-        <div 
+        <div
           id="lead-detail-modal-content"
           className="bg-white dark:bg-zinc-900 rounded-xl md:rounded-2xl shadow-soft-dreamy dark:shadow-dark-soft-dreamy w-11/12 sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 space-y-5 md:space-y-6 transform animate-modal-content-appear modal-scrollable"
-          onClick={(e) => e.stopPropagation()} 
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-start">
             <div className="flex items-center space-x-2"> 
@@ -692,12 +696,22 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           </div>
            
             {(canEditLead || isSuperUser) && (
-                <div className="pt-3 border-t border-gray-200/80 dark:border-zinc-800/70 flex space-x-2">
-                    {canEditLead && ( 
+                <div className="pt-3 border-t border-gray-200/80 dark:border-zinc-800/70 flex flex-wrap gap-2">
+                    {canEditLead && (
                          <button onClick={handleOpenEditLeadModal} className="flex-1 p-2.5 text-sm font-medium text-yellow-700 bg-yellow-100 hover:bg-yellow-200 rounded-lg dark:text-yellow-200 dark:bg-yellow-700/50 dark:hover:bg-yellow-600/50 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-colors" aria-label="Edit core lead details">
                             Edit Lead Details
                         </button>
                     )}
+                    {/* Quote a Price Button - visible for basic users who can edit, and superusers */}
+                    {(userProfile?.role === UserRole.BASIC_USER && canEditLead) || isSuperUser ? (
+                        <button
+                            onClick={() => setIsQuotationModalOpen(true)}
+                            className="flex-1 p-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg dark:bg-green-500 dark:hover:bg-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+                            aria-label="Quote a price for this lead"
+                        >
+                            Quote a Price
+                        </button>
+                    ) : null}
                     {isSuperUser && canEditLead && (
                         <button
                           type="button"
@@ -958,15 +972,24 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       
       <MeetingDetailsDisplayModal isOpen={isMeetingDetailsDisplayModalOpen} onClose={() => setIsMeetingDetailsDisplayModalOpen(false)} meetingDetails={parsedMeetingDetails} parsingError={parsingError} leadName={lead.name || "Lead"} />
       
-      <MeetLinkInputModal 
-          isOpen={isMeetLinkModalOpen} 
-          onClose={() => { setIsMeetLinkModalOpen(false); setMeetLinkModalPurpose(null); }} 
+      <MeetLinkInputModal
+          isOpen={isMeetLinkModalOpen}
+          onClose={() => { setIsMeetLinkModalOpen(false); setMeetLinkModalPurpose(null); }}
           onSubmit={meetLinkModalPurpose === 'tag' ? handleMeetLinkSubmittedForTag : handleMeetLinkSubmitted}
-          leadName={lead.name || "Selected Lead"} 
+          leadName={lead.name || "Selected Lead"}
       />
 
       {lead && <PaymentDetailsInputModal isOpen={isPaymentDetailsModalOpen} onClose={() => setIsPaymentDetailsModalOpen(false)} onSubmit={handlePaymentDetailsSubmitted} leadName={lead.name || "Selected Lead"} currentTotalAmountQuoted={lead.paymentDetails?.totalAmountQuoted} currentAmountPaid={lead.paymentDetails?.amountPaid} currentPaymentMode={lead.paymentDetails?.paymentMode} existingPaymentDateForDisplay={lead.paymentDetails?.paymentDate ? formatDateTimeString(lead.paymentDetails.paymentDate) : undefined} isSuperUser={canEditLead} />}
       {lead && canEditLead && <EditLeadDetailsModal isOpen={isEditLeadModalOpen} onClose={() => setIsEditLeadModalOpen(false)} currentLead={lead} onSave={handleSaveCoreLeadDetails} />}
+      {lead && actorUserProfile && (
+        <QuotationModal
+            isOpen={isQuotationModalOpen}
+            onClose={() => setIsQuotationModalOpen(false)}
+            lead={lead}
+            actorUserProfile={actorUserProfile}
+            n8nWebhookUrl="http://localhost:5678/webhook/EmailToClient" // As per requirement
+        />
+      )}
 
       <ServiceDetailCard
         service={serviceForDetailView}
