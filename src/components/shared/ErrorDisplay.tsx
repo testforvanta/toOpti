@@ -19,4 +19,4 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ message, title = "System Al
   </div>
 );
 
-export default ErrorDisplay;
+export default React.memo(ErrorDisplay);

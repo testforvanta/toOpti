@@ -14,4 +14,4 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message = "Loading Data
   </div>
 );
 
-export default LoadingSpinner;
+export default React.memo(LoadingSpinner);

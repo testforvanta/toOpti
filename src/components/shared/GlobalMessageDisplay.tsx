@@ -37,4 +37,4 @@ const GlobalMessageDisplay: React.FC<GlobalMessageDisplayProps> = ({ messageConf
     );
   };
 
-export default GlobalMessageDisplay;
+export default React.memo(GlobalMessageDisplay);

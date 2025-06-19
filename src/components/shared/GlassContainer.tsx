@@ -15,4 +15,4 @@ const GlassContainer: React.FC<GlassContainerProps> = ({ children, className = "
   </div>
 );
 
-export default GlassContainer;
+export default React.memo(GlassContainer);

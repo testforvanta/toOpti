@@ -47,6 +47,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     basicUserProfilesList,
     isLoadingBasicUsers,
 }) => {
+  // console.log("[DashboardPage] Props received - leads.length:", leads.length, "isLoading:", isLoading, "error:", error, "initialStageFilter:", initialStageFilter);
   const [currentStageFilter, setCurrentStageFilter] = useState<LeadStage | null>(initialStageFilter);
   
   useEffect(() => {
@@ -263,10 +264,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   }, [leads]);
   
   const leadsForTable = useMemo(() => {
+    let result: Lead[];
     if (currentStageFilter) {
-      return leads.filter(lead => lead.stage === currentStageFilter);
+      result = leads.filter(lead => lead.stage === currentStageFilter);
+    } else {
+      result = leads.slice(0, 10);
     }
-    return leads.slice(0, 10); 
+    // console.log("[DashboardPage] leadsForTable computed. currentStageFilter:", currentStageFilter, "Input leads length:", leads.length, "Resulting leadsForTable length:", result.length);
+    return result;
   }, [leads, currentStageFilter]);
 
   const tableTitle = useMemo(() => {

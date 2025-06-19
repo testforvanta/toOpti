@@ -80,7 +80,7 @@ const SidePanel: React.FC<SidePanelProps> = React.memo(({
       {/* Back arrow for settings page */}
       {currentPage === 'settings' && (
         <button
-          onClick={onNavigateToDashboard}
+          onClick={() => onNavigateToDashboard()}
           className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mb-4 focus:outline-none"
           aria-label="Back to Dashboard"
         >
@@ -100,7 +100,7 @@ const SidePanel: React.FC<SidePanelProps> = React.memo(({
       
       <nav className="flex-grow space-y-3">
         <button
-          onClick={onNavigateToDashboard}
+          onClick={() => onNavigateToDashboard()}
           className={`${navButtonBaseClasses} ${currentPage === 'dashboard' ? activeClasses : inactiveClasses}`}
           aria-current={currentPage === 'dashboard' ? 'page' : undefined}
         >
