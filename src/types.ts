@@ -75,6 +75,18 @@ export interface Lead {
   assignedToUserId?: string | null; 
   assignedToUserFullName?: string | null; 
   sticky_note?: string;
+  selected_services?: string[]; // Array of service names or IDs
+}
+
+export interface BusinessListing {
+  id: string; // Assuming UUID or string ID from Supabase
+  name: string;
+  type: string; // 'service' or 'product'
+  description?: string;
+  price?: number;
+  business_id?: string; // Foreign key to business_settings
+  created_at?: string;
+  // Add any other relevant fields from your business_listings table
 }
 
 export interface ChartDataItem {
@@ -92,7 +104,7 @@ export interface GlobalMessageConfig {
   message: string;
 }
 
-export type LeadUpdatePayload = Partial<Pick<Lead, 'stage' | 'meetLink' | 'paymentDetails' | 'tags' | 'meetingDate'>>;
+export type LeadUpdatePayload = Partial<Pick<Lead, 'stage' | 'meetLink' | 'paymentDetails' | 'tags' | 'meetingDate' | 'selected_services'>>;
 
 export enum UserRole {
   SUPERUSER = 'superuser',

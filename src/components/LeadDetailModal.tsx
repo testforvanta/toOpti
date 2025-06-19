@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Lead, LeadStage, MeetingDetailsData, LeadUpdatePayload, PaymentProgressState, PaymentDetails, UserProfile, UserRole, NotificationType } from '../types';
+import { Lead, LeadStage, MeetingDetailsData, LeadUpdatePayload, PaymentProgressState, PaymentDetails, UserProfile, UserRole, NotificationType, BusinessListing } from '../types';
 import MeetingDetailsDisplayModal from './MeetingDetailsDisplayModal'; 
 import MeetLinkInputModal from './MeetLinkInputModal'; 
+import { fetchBusinessListings } from '../../services/businessSettingsService'; // Import for fetching services
 import PaymentDetailsInputModal from './PaymentDetailsInputModal';
 import EditLeadDetailsModal from './EditLeadDetailsModal'; 
 import WhatsAppIcon from './shared/WhatsAppIcon'; 
@@ -86,6 +87,13 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [isEditingStickyNote, setIsEditingStickyNote] = useState(false);
   const [currentStickyNote, setCurrentStickyNote] = useState('');
 
+  // State for service tagging
+  const [availableServices, setAvailableServices] = useState<BusinessListing[]>([]);
+  const [currentSelectedServices, setCurrentSelectedServices] = useState<string[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [serviceFetchError, setServiceFetchError] = useState<string | null>(null);
+
+
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
   const isLeadAssignedToCurrentUser = lead && userProfile && userProfile.role === UserRole.BASIC_USER 
                                     ? lead.assignedToUserId === userProfile.id 
@@ -112,13 +120,63 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     }
   };
 
+  const handleAddServiceTag = (serviceName: string) => {
+    if (serviceName && !currentSelectedServices.includes(serviceName) && canEditLead) {
+      const newSelectedServices = [...currentSelectedServices, serviceName];
+      setCurrentSelectedServices(newSelectedServices);
+      // Immediately attempt to save this change
+      if (lead && actorUserProfile?.id) {
+        onUpdateLeadDetails(lead.id, { selected_services: newSelectedServices }, actorUserProfile.id, lead)
+          .catch(err => {
+            setUpdateError(err.message || "Failed to update services.");
+            // Revert optimistic update on error
+            setCurrentSelectedServices(currentSelectedServices);
+          });
+      }
+    }
+  };
+
+  const handleRemoveServiceTag = (serviceName: string) => {
+    if (canEditLead) {
+      const newSelectedServices = currentSelectedServices.filter(s => s !== serviceName);
+      setCurrentSelectedServices(newSelectedServices);
+      // Immediately attempt to save this change
+      if (lead && actorUserProfile?.id) {
+         onUpdateLeadDetails(lead.id, { selected_services: newSelectedServices }, actorUserProfile.id, lead)
+          .catch(err => {
+            setUpdateError(err.message || "Failed to update services.");
+            // Revert optimistic update on error
+            setCurrentSelectedServices(currentSelectedServices);
+          });
+      }
+    }
+  };
+
   useEffect(() => {
     if (isOpen && lead) {
         setSelectedAssigneeId(lead.assignedToUserId || '');
         setCurrentStickyNote(lead.sticky_note || '');
+        setCurrentSelectedServices(lead.selected_services || []);
         setIsEditingStickyNote(false);
+
+        // Fetch available services if not already fetched or if forced
+        if (availableServices.length === 0) {
+            setIsLoadingServices(true);
+            setServiceFetchError(null);
+            fetchBusinessListings()
+                .then(data => {
+                    setAvailableServices(data || []);
+                })
+                .catch(err => {
+                    console.error("Failed to fetch business listings:", err);
+                    setServiceFetchError(err.message || "Error fetching services.");
+                })
+                .finally(() => {
+                    setIsLoadingServices(false);
+                });
+        }
     }
-  }, [isOpen, lead]);
+  }, [isOpen, lead, availableServices.length]); // Rerun if lead changes or modal opens
 
 
   useEffect(() => {
@@ -747,6 +805,59 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
              </div>
           )}
 
+          {/* Service Required Section */}
+          <div className="pt-4 mt-3 space-y-2 border-t border-gray-200/80 dark:border-zinc-800/70">
+            <h3 className="text-md font-semibold text-gray-800 dark:text-zinc-100 mb-1.5">Service Required</h3>
+            {serviceFetchError && <p className="text-xs text-red-500 dark:text-red-400">{serviceFetchError}</p>}
+            {isLoadingServices && <p className="text-xs text-gray-500 dark:text-zinc-400">Loading services...</p>}
+
+            {!isLoadingServices && !serviceFetchError && (
+              <>
+                <select
+                  onChange={(e) => handleAddServiceTag(e.target.value)}
+                  value="" // Keep it empty to act as a placeholder
+                  className="w-full p-2.5 rounded-lg bg-gray-50 text-gray-700 border border-gray-300 focus:ring-2 focus:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 dark:focus:ring-blue-400 text-sm mb-2"
+                  disabled={!canEditLead || isUpdating || availableServices.length === 0}
+                  aria-label="Select a service required"
+                >
+                  <option value="" disabled>
+                    {availableServices.length === 0 ? "No services available" : "Select a service..."}
+                  </option>
+                  {availableServices
+                    .filter(service => !currentSelectedServices.includes(service.name)) // Show only unselected services
+                    .map(service => (
+                      <option key={service.id} value={service.name}>
+                        {service.name} ({service.type})
+                      </option>
+                  ))}
+                </select>
+
+                {currentSelectedServices.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2 py-2">
+                    {currentSelectedServices.map(serviceName => (
+                      <span key={serviceName} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-700/30 dark:text-blue-300 shadow-sm">
+                        {serviceName}
+                        {canEditLead && !isUpdating && (
+                          <button
+                            onClick={() => handleRemoveServiceTag(serviceName)}
+                            className="ml-1.5 p-0.5 rounded-full text-blue-500 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            aria-label={`Remove ${serviceName} service`}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                 {currentSelectedServices.length === 0 && <p className="text-xs text-gray-400 dark:text-zinc-500 italic">No services selected yet.</p>}
+              </>
+            )}
+          </div>
+
+          {/* Sticky Note Section */}
           <div className="pt-4 mt-3 space-y-2 border-t border-gray-200/80 dark:border-zinc-800/70">
             <h3 className="text-md font-semibold text-gray-800 dark:text-zinc-100 mb-1.5">Sticky Note</h3>
             {!isEditingStickyNote ? (

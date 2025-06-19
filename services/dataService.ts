@@ -26,6 +26,7 @@ interface SupabaseLeadRow {
   profiles?: { full_name: string, email: string } | null; 
   sticky_note?: string | null;
   tags?: string[] | null; // Added field
+  selected_services?: string[] | null; // For selected service tags
 }
 
 interface SupabaseProfileRow {
@@ -185,6 +186,33 @@ const mapSupabaseRowToLead = (dbLead: SupabaseLeadRow): Lead => {
       }
     }
 
+    // New logic for selected_services:
+    let parsedSelectedServices: string[] = [];
+    if (dbLead.selected_services) {
+      if (Array.isArray(dbLead.selected_services)) {
+        parsedSelectedServices = dbLead.selected_services.filter(s => typeof s === 'string'); // Ensure all items are strings
+      } else if (typeof dbLead.selected_services === 'string') {
+        // This case handles if Supabase stores array as a JSON string like '["service1","service2"]'
+        // or a comma-separated string like "service1,service2" (less likely for array types but good to be robust)
+        try {
+          const potentiallyParsedServices = JSON.parse(dbLead.selected_services);
+          if (Array.isArray(potentiallyParsedServices)) {
+            parsedSelectedServices = potentiallyParsedServices.filter(s => typeof s === 'string');
+          } else {
+             console.warn(`Lead ID ${dbLead.ID}: 'selected_services' field was a string but did not parse into an array:`, dbLead.selected_services);
+          }
+        } catch (e) {
+          // If JSON.parse fails, it might be a simple comma-separated string or something else.
+          // For now, we'll assume if it's a string and not JSON, it's not in the expected format.
+          // Depending on DB storage, this might need adjustment (e.g., .split(','))
+          console.warn(`Lead ID ${dbLead.ID}: Failed to parse 'selected_services' field from string:`, dbLead.selected_services, e);
+        }
+      } else {
+        console.warn(`Lead ID ${dbLead.ID}: 'selected_services' field had an unexpected type:`, typeof dbLead.selected_services);
+      }
+    }
+
+
     return {
         id: leadId, 
         name: dbLead.Name || 'N/A', 
@@ -207,6 +235,7 @@ const mapSupabaseRowToLead = (dbLead: SupabaseLeadRow): Lead => {
         assignedToUserFullName: dbLead.profiles?.full_name || null,
         sticky_note: dbLead.sticky_note || undefined,
         tags: parsedTags,
+        selected_services: parsedSelectedServices,
     };
 };
 
@@ -219,7 +248,7 @@ export const fetchLeads = async (
   try {
     let query = supabase
       .from('leads')
-      .select('*, sticky_note, tags, profiles:assigned_to_user_id (full_name, email)')
+      .select('*, sticky_note, tags, selected_services, profiles:assigned_to_user_id (full_name, email)')
       .order('SubmissionDate', { ascending: false });
 
     if (currentUserRole === UserRole.BASIC_USER && currentUserId) {
@@ -258,7 +287,8 @@ export const updateLeadDetails = async (leadId: string, updates: LeadUpdatePaylo
     meetLink?: string | null;
     paymentDetails?: PaymentDetails | null;
     tags?: string[] | null; 
-    meetingDate?: string | null; 
+    meetingDate?: string | null;
+    selected_services?: string[] | null;
   } = {};
 
   let actionType: ActivityLogActionType | null = null;
@@ -320,6 +350,15 @@ export const updateLeadDetails = async (leadId: string, updates: LeadUpdatePaylo
           logDetails.newMeetingDate = supabaseUpdatePayload.meetingDate;
            if (!actionType) actionType = ActivityLogActionType.LEAD_DETAILS_UPDATE;
       }
+  }
+
+  if (updates.selected_services !== undefined) {
+    supabaseUpdatePayload.selected_services = updates.selected_services;
+    if (currentLeadData && JSON.stringify(updates.selected_services) !== JSON.stringify(currentLeadData.selected_services)) {
+      logDetails.oldSelectedServices = currentLeadData.selected_services;
+      logDetails.newSelectedServices = updates.selected_services;
+      if (!actionType) actionType = ActivityLogActionType.LEAD_DETAILS_UPDATE; // Or a more specific type if created
+    }
   }
 
   if (Object.keys(supabaseUpdatePayload).length === 0) {
