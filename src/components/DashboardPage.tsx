@@ -18,23 +18,25 @@ import { CoreLeadDataUpdate } from '../App';
 
 interface DashboardPageProps {
   initialStageFilter: LeadStage | null;
-  leads: Lead[]; 
-  isLoading: boolean; 
-  error: string | null; 
-  onUpdateLeadDetailsInApp: (leadId: string, updates: LeadUpdatePayload) => void; 
+  leads: Lead[];
+  isLoading: boolean;
+  error: string | null;
+  onUpdateLeadDetailsInApp: (leadId: string, updates: LeadUpdatePayload) => void;
   clearInitialStageFilter: () => void;
-  userProfile: UserProfile | null; 
+  userProfile: UserProfile | null;
   actorUserProfile: UserProfile | null; // New: To identify who is performing the action
-  onDeleteLeadInApp: (leadId: string) => void; 
-  onUpdateCoreLeadDetailsInApp: (leadId: string, updates: CoreLeadDataUpdate) => void; 
-  onAssignLeadInApp: (leadId: string, assignedToUserId: string | null, assignedToUserFullName?: string | null) => void; 
-  basicUserProfilesList: UserProfile[]; 
-  isLoadingBasicUsers: boolean; 
+  onDeleteLeadInApp: (leadId: string) => void;
+  onUpdateCoreLeadDetailsInApp: (leadId: string, updates: CoreLeadDataUpdate) => void;
+  onAssignLeadInApp: (leadId: string, assignedToUserId: string | null, assignedToUserFullName?: string | null) => void;
+  basicUserProfilesList: UserProfile[];
+  isLoadingBasicUsers: boolean;
+  onDateFilterChange: (startDate?: string, endDate?: string) => void;
+  setGlobalUpdateMessage: (messageConfig: GlobalMessageConfig | null) => void; // Add prop
 }
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ 
-    initialStageFilter, 
-    leads, 
+const DashboardPage: React.FC<DashboardPageProps> = ({
+    initialStageFilter,
+    leads,
     isLoading, 
     error, 
     onUpdateLeadDetailsInApp,
@@ -46,10 +48,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     onAssignLeadInApp,
     basicUserProfilesList,
     isLoadingBasicUsers,
+    onDateFilterChange,
+    setGlobalUpdateMessage // This should be the only instance in the destructuring
 }) => {
   // console.log("[DashboardPage] Props received - leads.length:", leads.length, "isLoading:", isLoading, "error:", error, "initialStageFilter:", initialStageFilter);
   const [currentStageFilter, setCurrentStageFilter] = useState<LeadStage | null>(initialStageFilter);
-  
+
   useEffect(() => {
     setCurrentStageFilter(initialStageFilter);
   }, [initialStageFilter]);
@@ -57,15 +61,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isLeadDetailModalOpen, setIsLeadDetailModalOpen] = useState<boolean>(false);
   const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState<boolean>(false);
-  const [globalUpdateMessage, setGlobalUpdateMessage] = useState<GlobalMessageConfig | null>(null); 
+  // const [globalUpdateMessage, setGlobalUpdateMessage] = useState<GlobalMessageConfig | null>(null); // Removed local state
 
   const isSuperUser = userProfile?.role === UserRole.SUPERUSER;
 
   const handleOpenLeadDetailModal = useCallback((lead: Lead) => {
     setSelectedLead(lead);
     setIsLeadDetailModalOpen(true);
-    setGlobalUpdateMessage(null); 
-  }, []);
+    setGlobalUpdateMessage(null);
+  }, [setGlobalUpdateMessage]); // Added setGlobalUpdateMessage to dependencies
 
   const handleCloseLeadDetailModal = useCallback(() => {
     setSelectedLead(null);
@@ -73,7 +77,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   }, []);
 
   const handleUpdateLeadDetailsForModal = useCallback(async (leadId: string, updates: LeadUpdatePayload) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
     if (!actorUserProfile?.id) {
@@ -100,10 +104,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       setGlobalUpdateMessage({type: 'error', message: `Failed to update details for "${originalLeadName}": ${errorMessage}`});
       throw err; 
     }
-  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp]);
+  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp, setGlobalUpdateMessage]);
 
   const handleUpdateCoreLeadDetailsForModal = useCallback(async (leadId: string, updates: CoreLeadDataUpdate) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
     if (!actorUserProfile?.id) {
@@ -122,10 +126,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to update core details for "${originalLeadName}": ${errorMessage}` });
         throw err;
     }
-  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead]);
+  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead, setGlobalUpdateMessage]);
 
   const handleDeleteLeadForModal = useCallback(async (leadId: string) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const leadToDelete = leads.find(l => l.id === leadId);
     const leadName = leadToDelete?.name || 'Lead';
     if (!actorUserProfile?.id) {
@@ -142,10 +146,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to delete lead "${leadName}": ${errorMessage}` });
         throw err;
     }
-  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal]);
+  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal, setGlobalUpdateMessage]);
 
   const handleAssignLeadForModal = useCallback(async (leadId: string, targetUserId: string | null) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const leadToAssign = leads.find(l => l.id === leadId);
     const leadName = leadToAssign?.name || 'Lead';
     const targetUser = basicUserProfilesList.find(u => u.id === targetUserId);
@@ -166,12 +170,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       setGlobalUpdateMessage({ type: 'error', message: `Failed to assign lead "${leadName}": ${errorMessage}` });
       throw err;
     }
-  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead]);
+  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead, setGlobalUpdateMessage]);
   
   const handleOpenAddLeadModal = useCallback(() => {
     setIsAddLeadModalOpen(true);
-    setGlobalUpdateMessage(null);
-  }, []);
+    setGlobalUpdateMessage(null); // Prop version
+  }, [setGlobalUpdateMessage]);
 
   const handleCloseAddLeadModal = useCallback(() => {
     setIsAddLeadModalOpen(false);
@@ -179,21 +183,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const handleSaveNewLead = useCallback(async (newLeadData: NewLeadData) => {
     if (!userProfile) { // userProfile is the one adding, actorUserProfile is also userProfile here
-        setGlobalUpdateMessage({ type: 'error', message: `User profile not available. Cannot add lead.` });
+        setGlobalUpdateMessage({ type: 'error', message: `User profile not available. Cannot add lead.` }); // Prop version
         return;
     }
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     try {
       // For addLead (n8n webhook), actor context is passed within the payload
       await addLeadService(newLeadData, userProfile.id, userProfile.role);
-      setGlobalUpdateMessage({ type: 'success', message: `Lead "${newLeadData.name}" submission sent to workflow!` });
+      setGlobalUpdateMessage({ type: 'success', message: `Lead "${newLeadData.name}" submission sent to workflow!` }); // Prop version
       handleCloseAddLeadModal();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred while adding lead.";
-      setGlobalUpdateMessage({ type: 'error', message: `Failed to submit lead: ${errorMessage}` });
+      setGlobalUpdateMessage({ type: 'error', message: `Failed to submit lead: ${errorMessage}` }); // Prop version
       throw err; 
     }
-  }, [userProfile, handleCloseAddLeadModal]);
+  }, [userProfile, handleCloseAddLeadModal, setGlobalUpdateMessage]);
 
   // const handleClearFilter = () => { // Removed as button is removed
   //   setCurrentStageFilter(null);
@@ -362,9 +366,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
         <LeadsTable 
             leads={leadsForTable} // Ensure this is the case
-            onRowClick={handleOpenLeadDetailModal} 
+            onRowClick={handleOpenLeadDetailModal}
             currentUserProfile={userProfile}
-            // dateFilterBar prop removed
+            onDateFilterChange={onDateFilterChange}
+            setGlobalUpdateMessage={setGlobalUpdateMessage} // Pass it down
         />
       </GlassContainer>
 

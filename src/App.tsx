@@ -99,15 +99,18 @@ const App: React.FC = () => {
   }, [user]);
 
 
+  const [dateFilter, setDateFilter] = useState<{ startDate?: string, endDate?: string }>({});
+
   useEffect(() => {
     // console.log("[App.tsx LeadsEffect] Triggered. User ID:", user?.id, "Profile Role:", profile?.role); // Removed
-    if (user && profile) { 
+    if (user && profile) {
       const loadLeads = async () => {
         // console.log("[App.tsx LeadsEffect] Calling fetchLeadsService. Current leads length before fetch:", leads.length); // Removed
         setIsLoadingLeads(true);
         setLeadsError(null);
         try {
-          const fetchedLeads = await fetchLeadsService(user.id, profile.role);
+          // Pass dateFilter to fetchLeadsService
+          const fetchedLeads = await fetchLeadsService(user.id, profile.role, dateFilter.startDate, dateFilter.endDate);
           // console.log("[App.tsx LeadsEffect] Fetched leads. New length:", fetchedLeads.length); // Removed
           setLeads(fetchedLeads);
         } catch (err) {
@@ -136,7 +139,11 @@ const App: React.FC = () => {
       setIsLoadingLeads(false);
       setLeadsError(null);
     }
-  }, [user, profile]); 
+  }, [user, profile, dateFilter]); // Added dateFilter to dependency array
+
+  const handleDateFilterChange = useCallback((startDate?: string, endDate?: string) => {
+    setDateFilter({ startDate, endDate });
+  }, []);
 
    useEffect(() => {
     if (user && profile?.role === UserRole.SUPERUSER) {
@@ -567,9 +574,11 @@ const App: React.FC = () => {
               actorUserProfile={profile} 
               onDeleteLeadInApp={handleDeleteLeadInApp}
               onUpdateCoreLeadDetailsInApp={handleUpdateCoreLeadDetailsInApp}
-              onAssignLeadInApp={handleAssignLeadInApp} 
-              basicUserProfilesList={basicUserProfilesList} 
+              onAssignLeadInApp={handleAssignLeadInApp}
+              basicUserProfilesList={basicUserProfilesList}
               isLoadingBasicUsers={isLoadingBasicUsers}
+              onDateFilterChange={handleDateFilterChange}
+              setGlobalUpdateMessage={setGlobalUpdateMessage} // Pass down
             />
           )}
           {currentPage === 'leadFlow' && (
@@ -596,9 +605,11 @@ const App: React.FC = () => {
               actorUserProfile={profile} 
               onDeleteLeadInApp={handleDeleteLeadInApp}
               onUpdateCoreLeadDetailsInApp={handleUpdateCoreLeadDetailsInApp}
-              onAssignLeadInApp={handleAssignLeadInApp} 
-              basicUserProfilesList={basicUserProfilesList} 
+              onAssignLeadInApp={handleAssignLeadInApp}
+              basicUserProfilesList={basicUserProfilesList}
               isLoadingBasicUsers={isLoadingBasicUsers}
+              onDateFilterChange={handleDateFilterChange}
+              setGlobalUpdateMessage={setGlobalUpdateMessage} // Pass down
             />
           )}
           {currentPage === 'users' && profile.role === UserRole.SUPERUSER && (

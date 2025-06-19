@@ -242,8 +242,8 @@ const mapSupabaseRowToLead = (dbLead: SupabaseLeadRow): Lead => {
 export const fetchLeads = async (
   currentUserId?: string,
   currentUserRole?: UserRole,
-  startDate?: string, 
-  endDate?: string    
+  startDate?: string,
+  endDate?: string
 ): Promise<Lead[]> => {
   try {
     let query = supabase
@@ -252,14 +252,17 @@ export const fetchLeads = async (
       .order('SubmissionDate', { ascending: false });
 
     if (currentUserRole === UserRole.BASIC_USER && currentUserId) {
-      query = query.eq('assigned_to_user_id', currentUserId); 
+      query = query.eq('assigned_to_user_id', currentUserId);
     }
 
+    // Adjust date filtering to handle Supabase timestamp format
     if (startDate) {
-      query = query.gte('SubmissionDate', startDate);
+      // Ensure the start of the day for startDate
+      query = query.gte('SubmissionDate', `${startDate}T00:00:00.000Z`);
     }
     if (endDate) {
-      query = query.lte('SubmissionDate', endDate);
+      // Ensure the end of the day for endDate
+      query = query.lte('SubmissionDate', `${endDate}T23:59:59.999Z`);
     }
 
     const { data, error } = await query;

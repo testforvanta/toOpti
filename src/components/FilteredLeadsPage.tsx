@@ -61,24 +61,26 @@ const isDateTomorrow = (date: Date): boolean => {
 interface FilteredLeadsPageProps {
   stage: LeadStage | null; // Keep stage for stage-based filtering
   tag: string | null;    // Add/Ensure tag is present
-  leads: Lead[]; 
+  leads: Lead[];
   isLoading: boolean;
   error: string | null;
   onUpdateLeadDetailsInApp: (leadId: string, updates: LeadUpdatePayload) => void;
   onNavigateBack: () => void;
-  userProfile: UserProfile | null; 
+  userProfile: UserProfile | null;
   actorUserProfile: UserProfile | null; // New: To identify who is performing the action
-  onDeleteLeadInApp: (leadId: string) => void; 
-  onUpdateCoreLeadDetailsInApp: (leadId: string, updates: CoreLeadDataUpdate) => void; 
-  onAssignLeadInApp: (leadId: string, assignedToUserId: string | null, assignedToUserFullName?: string | null) => void; 
-  basicUserProfilesList: UserProfile[]; 
-  isLoadingBasicUsers: boolean; 
+  onDeleteLeadInApp: (leadId: string) => void;
+  onUpdateCoreLeadDetailsInApp: (leadId: string, updates: CoreLeadDataUpdate) => void;
+  onAssignLeadInApp: (leadId: string, assignedToUserId: string | null, assignedToUserFullName?: string | null) => void;
+  basicUserProfilesList: UserProfile[];
+  isLoadingBasicUsers: boolean;
+  onDateFilterChange: (startDate?: string, endDate?: string) => void;
+  setGlobalUpdateMessage: (messageConfig: GlobalMessageConfig | null) => void; // Add prop
 }
 
 const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
   stage,
   tag, // Destructure tag
-  leads, 
+  leads,
   isLoading,
   error,
   onUpdateLeadDetailsInApp,
@@ -90,11 +92,13 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
   onAssignLeadInApp,
   basicUserProfilesList,
   isLoadingBasicUsers,
+  onDateFilterChange,
+  setGlobalUpdateMessage // This should be the only instance
 }) => {
   const { theme } = useTheme();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isLeadDetailModalOpen, setIsLeadDetailModalOpen] = useState<boolean>(false);
-  const [globalUpdateMessage, setGlobalUpdateMessage] = useState<GlobalMessageConfig | null>(null);
+  // const [globalUpdateMessage, setGlobalUpdateMessage] = useState<GlobalMessageConfig | null>(null); // Removed local state
   
   const [meetingPopoverState, setMeetingPopoverState] = useState<{ lead: Lead, anchorEl: HTMLElement } | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -164,7 +168,7 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
     setSelectedLead(lead);
     setIsLeadDetailModalOpen(true);
     setGlobalUpdateMessage(null);
-  }, []);
+  }, [setGlobalUpdateMessage]); // Added setGlobalUpdateMessage to dependencies
 
   const handleCloseLeadDetailModal = useCallback(() => {
     setSelectedLead(null);
@@ -172,7 +176,7 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
   }, []);
 
   const handleUpdateLeadDetailsForModal = useCallback(async (leadId: string, updates: LeadUpdatePayload) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
      if (!actorUserProfile?.id) {
@@ -198,10 +202,10 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
       setGlobalUpdateMessage({type: 'error', message: `Failed to update details for "${originalLeadName}": ${errorMessage}`});
       throw err; 
     }
-  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp]);
+  }, [leads, actorUserProfile, onUpdateLeadDetailsInApp, setGlobalUpdateMessage]);
 
   const handleUpdateCoreLeadDetailsForModal = useCallback(async (leadId: string, updates: CoreLeadDataUpdate) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const originalLead = leads.find(l => l.id === leadId);
     const originalLeadName = originalLead?.name || 'Lead';
     if (!actorUserProfile?.id) {
@@ -220,10 +224,10 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to update core details for "${originalLeadName}": ${errorMessage}` });
         throw err;
     }
-  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead]);
+  }, [leads, actorUserProfile, onUpdateCoreLeadDetailsInApp, selectedLead, setGlobalUpdateMessage]);
 
   const handleDeleteLeadForModal = useCallback(async (leadId: string) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const leadToDelete = leads.find(l => l.id === leadId);
     const leadName = leadToDelete?.name || 'Lead';
     if (!actorUserProfile?.id) {
@@ -240,10 +244,10 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
         setGlobalUpdateMessage({ type: 'error', message: `Failed to delete lead "${leadName}": ${errorMessage}` });
         throw err;
     }
-  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal]);
+  }, [leads, actorUserProfile, onDeleteLeadInApp, handleCloseLeadDetailModal, setGlobalUpdateMessage]);
 
    const handleAssignLeadForModal = useCallback(async (leadId: string, targetUserId: string | null) => {
-    setGlobalUpdateMessage(null);
+    setGlobalUpdateMessage(null); // Prop version
     const leadToAssign = leads.find(l => l.id === leadId);
     const leadName = leadToAssign?.name || 'Lead';
     const targetUser = basicUserProfilesList.find(u => u.id === targetUserId);
@@ -264,7 +268,7 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
       setGlobalUpdateMessage({ type: 'error', message: `Failed to assign lead "${leadName}": ${errorMessage}` });
       throw err;
     }
-  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead]);
+  }, [leads, basicUserProfilesList, actorUserProfile, onAssignLeadInApp, selectedLead, setGlobalUpdateMessage]);
 
   const handleMeetingIconClickInTable = useCallback((lead: Lead, anchorEl: HTMLElement) => {
     if (meetingPopoverState?.lead.id === lead.id && meetingPopoverState?.anchorEl === anchorEl) {
@@ -272,7 +276,7 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
     } else {
       setMeetingPopoverState({ lead, anchorEl });
     }
-  }, [meetingPopoverState]);
+  }, [meetingPopoverState]); // setGlobalUpdateMessage is not used here, so not added
   
   const calculatePopoverPosition = (anchor: HTMLElement | null): React.CSSProperties => {
     if (!anchor) {
@@ -354,6 +358,8 @@ const FilteredLeadsPage: React.FC<FilteredLeadsPageProps> = ({
             onRowClick={handleOpenLeadDetailModal}
             onMeetingIconClick={tag === 'Meeting Scheduled' ? handleMeetingIconClickInTable : undefined}
             currentUserProfile={userProfile}
+            onDateFilterChange={onDateFilterChange}
+            setGlobalUpdateMessage={setGlobalUpdateMessage} // Pass it down
           />
         ) : (
           <p className="text-gray-500 dark:text-zinc-400 text-center py-10 text-lg">

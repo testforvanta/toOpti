@@ -1,9 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { Lead, EmailType, LeadStage, UserProfile, UserRole } from '../types'; 
+import React, { useState, useMemo, useEffect } from 'react';
+import { Lead, EmailType, LeadStage, UserProfile, UserRole, GlobalMessageConfig } from '../types';
+import { exportLeadsToN8N } from '../../services/exportService'; // Import the export service
 // import { useTheme } from '../../context/ThemeContext'; // Removed as theme variable was unused
-import WhatsAppIcon from './shared/WhatsAppIcon'; 
+import WhatsAppIcon from './shared/WhatsAppIcon';
 import { sanitizePhoneNumberForWhatsApp } from '../../utils/phoneNumberUtils';
 import MeetingScheduledTagIcon from './shared/MeetingScheduledTagIcon';
+
+// Funnel Icon SVG
+const FunnelIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || "w-5 h-5"}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+  </svg>
+);
 
 const VideoCameraIconMini = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || "w-4 h-4"}>
@@ -13,10 +21,11 @@ const VideoCameraIconMini = ({ className }: { className?: string }) => (
 
 interface LeadsTableProps {
   leads: Lead[];
-  onRowClick: (lead: Lead) => void; 
-  onMeetingIconClick?: (lead: Lead, targetElement: HTMLElement) => void; 
+  onRowClick: (lead: Lead) => void;
+  onMeetingIconClick?: (lead: Lead, targetElement: HTMLElement) => void;
   currentUserProfile: UserProfile | null;
-  dateFilterBar?: React.ReactNode; // Add this prop
+  onDateFilterChange: (startDate?: string, endDate?: string) => void; // Callback to apply date filter
+  setGlobalUpdateMessage: (messageConfig: GlobalMessageConfig | null) => void; // For user feedback
 }
 
 const formatDate = (date?: Date): string => {
@@ -43,10 +52,82 @@ const isDateTomorrow = (date: Date): boolean => {
 };
 
 
-const LeadsTable: React.FC<LeadsTableProps> = ({ leads, onRowClick, onMeetingIconClick, currentUserProfile, dateFilterBar }) => {
+const LeadsTable: React.FC<LeadsTableProps> = ({ leads, onRowClick, onMeetingIconClick, currentUserProfile, onDateFilterChange, setGlobalUpdateMessage }) => {
   // const { theme } = useTheme(); // Removed as theme was unused
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Lead | 'assignedToUserFullName' | null; direction: 'ascending' | 'descending' }>({ key: 'submissionDate', direction: 'descending' }); // Default sort by submissionDate
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // State for export functionality
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState<string>('');
+  const [exportEndDate, setExportEndDate] = useState<string>('');
+  const [selectedExportStages, setSelectedExportStages] = useState<LeadStage[]>([]);
+
+
+  const handleApplyDateFilter = () => {
+    onDateFilterChange(startDate, endDate);
+    // setShowDateFilter(false); // Optionally hide filter after applying
+  };
+
+  const handleClearDateFilter = () => {
+    setStartDate('');
+    setEndDate('');
+    onDateFilterChange(undefined, undefined);
+    // setShowDateFilter(false); // Optionally hide filter after clearing
+  };
+
+  const handleStageToggle = (stage: LeadStage) => {
+    setSelectedExportStages(prev =>
+      prev.includes(stage) ? prev.filter(s => s !== stage) : [...prev, stage]
+    );
+  };
+
+  const handleConfirmExport = async () => {
+    if (!currentUserProfile?.email) {
+      setGlobalUpdateMessage({ type: 'error', message: "User email not found. Cannot start export." });
+      return;
+    }
+    if (!exportStartDate || !exportEndDate) {
+      setGlobalUpdateMessage({ type: 'error', message: "Please select both 'From Date' and 'To Date' for export." });
+      return;
+    }
+    if (selectedExportStages.length === 0) {
+      setGlobalUpdateMessage({ type: 'error', message: "Please select at least one lead stage for export." });
+      return;
+    }
+
+    setGlobalUpdateMessage({ type: 'success', message: "Starting export process..." }); // Initial feedback
+    setShowExportModal(false);
+
+    try {
+      const result = await exportLeadsToN8N(
+        currentUserProfile.email,
+        exportStartDate,
+        exportEndDate,
+        selectedExportStages
+      );
+      setGlobalUpdateMessage({ type: result.success ? 'success' : 'error', message: result.message });
+    } catch (error) {
+      // This catch block might be redundant if exportLeadsToN8N always returns a structured response
+      // but kept for safety.
+      console.error("Export failed:", error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred during export.";
+      setGlobalUpdateMessage({ type: 'error', message: `Export initiation failed: ${message}` });
+    }
+  };
+
+  // Effect to apply filter when dates change and filter is visible (e.g. for immediate feedback)
+  // Or, rely on explicit apply button click. For now, using explicit apply.
+  // useEffect(() => {
+  //   if (showDateFilter) { // Only apply if filter UI is active
+  //     onDateFilterChange(startDate, endDate);
+  //   }
+  // }, [startDate, endDate, showDateFilter, onDateFilterChange]);
+
 
   const isSuperUser = currentUserProfile?.role === UserRole.SUPERUSER;
 
@@ -194,10 +275,148 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, onRowClick, onMeetingIco
           onChange={(e) => setSearchTerm(e.target.value)}
           aria-label="Search leads"
         />
-        <div className="w-full md:w-auto">
-          {dateFilterBar}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowDateFilter(!showDateFilter)}
+            className="p-3 rounded-lg bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 dark:hover:bg-zinc-700 transition-colors shadow-sm"
+            aria-label="Toggle date filter"
+            title="Filter by date"
+          >
+            <FunnelIcon />
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="p-3 rounded-lg bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700 dark:hover:bg-zinc-700 transition-colors shadow-sm"
+              aria-label="Export options"
+              title="Export options"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+              </svg>
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-md shadow-lg py-1 z-20 border dark:border-zinc-700">
+                <button
+                  onClick={() => {
+                    setShowExportModal(true);
+                    setShowExportMenu(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                >
+                  Export Leads to CSV
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-xl w-full max-w-lg">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-100 mb-4">Export Leads to CSV</h3>
+            {/* Date Range Inputs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="exportStartDate" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">From Date</label>
+                <input
+                  type="date"
+                  id="exportStartDate"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="w-full p-2.5 rounded-md bg-white dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-200 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label htmlFor="exportEndDate" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">To Date</label>
+                <input
+                  type="date"
+                  id="exportEndDate"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="w-full p-2.5 rounded-md bg-white dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-200 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400"
+                />
+              </div>
+            </div>
+
+            {/* Lead Stages Checkboxes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Select Lead Stages</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-md border dark:border-zinc-700 max-h-40 overflow-y-auto bg-gray-50 dark:bg-zinc-700/30">
+                {Object.values(LeadStage).map(stage => (
+                  <label key={stage} className="flex items-center space-x-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-600/50 p-1.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={selectedExportStages.includes(stage)}
+                      onChange={() => handleStageToggle(stage)}
+                      className="rounded text-blue-600 focus:ring-blue-500 dark:text-blue-500 dark:focus:ring-blue-400 dark:bg-zinc-600 dark:border-zinc-500"
+                    />
+                    <span>{stage}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 dark:text-zinc-200 dark:bg-zinc-600 dark:hover:bg-zinc-500 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmExport}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 rounded-md transition-colors"
+              >
+                Confirm Export
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDateFilter && (
+        <div className="mb-6 p-4 rounded-lg bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 shadow-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">From Date</label>
+              <input
+                type="date"
+                id="startDate"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full p-2.5 rounded-md bg-white dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-200 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400"
+              />
+            </div>
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">To Date</label>
+              <input
+                type="date"
+                id="endDate"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full p-2.5 rounded-md bg-white dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-zinc-200 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end space-x-3">
+            <button
+              onClick={handleClearDateFilter}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 dark:text-zinc-200 dark:bg-zinc-600 dark:hover:bg-zinc-500 rounded-md transition-colors"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleApplyDateFilter}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-md transition-colors"
+            >
+              Apply Filter
+            </button>
+          </div>
+        </div>
+      )}
+
       {sortedLeads.length === 0 && !searchTerm && <p className="text-gray-500 dark:text-zinc-400 text-center py-4">No leads found {isSuperUser ? "." : "assigned to you."}</p>}
       {sortedLeads.length === 0 && searchTerm && <p className="text-gray-500 dark:text-zinc-400 text-center py-4">No leads found for: <span className="text-blue-600 dark:text-blue-400 font-medium">{searchTerm}</span></p>}
       {sortedLeads.length > 0 && (
